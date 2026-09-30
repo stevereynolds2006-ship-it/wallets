@@ -23,7 +23,7 @@ Open the printed URL (normally `http://127.0.0.1:8080`).
 
 No wallet, no RF funding, and no transaction signature. Every balance is simulated and labeled in the game.
 
-**Playable preview:** https://stevereynolds2006-ship-it.github.io/wallets/
+**Playable preview:** https://stevereynolds2006-ship-it.github.io/cinder-crew/wallets/
 
 ## Play
 
