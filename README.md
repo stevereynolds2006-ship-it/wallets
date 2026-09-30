@@ -6,7 +6,7 @@ Simulation dive. This Friend is the wallet. Scoop simulated $RAREFRIENDS and bur
 
 **Category:** Token Activity (also Economy Potential)
 
-**Stack:** FriendSDK v0.1.4 (`@rarefriends/friendsdk/game`) inside a Node 22 web app. The dive is a full-screen canvas, not the FriendSDK 960×640 sandbox frame. The diver is original geometric art standing in for the wallet. Burns go through the SDK preview client (`buy`, `play`, `settle`, `redeem`).
+**Stack:** FriendSDK v0.1.4 (`@rarefriends/friendsdk/game`, wallet, owned friends, and sprites) inside a Node 22 web app. The dive is a full-screen canvas, not the FriendSDK 960×640 sandbox frame. Connect a wallet and the diver is that Generations NFT. With no wallet, the diver is original geometric art. Burns go through the SDK preview client (`buy`, `play`, `settle`, `redeem`).
 
 ## Run it
 
@@ -21,13 +21,14 @@ npm run dev
 
 Open the printed URL (normally `http://127.0.0.1:8080`).
 
-No wallet, no RF funding, and no transaction signature. Every balance is simulated and labeled in the game.
+Burns and balances are simulated. Connecting a wallet does not sign a transaction or spend RF. It reads the Generations NFTs that wallet holds and draws that Friend.
 
-**Playable preview:** https://stevereynolds2006-ship-it.github.io/cinder-crew/wallets/
+**Playable preview:** https://stevereynolds2006-ship-it.github.io/cinder-crew/wallets-connect/
 
 ## Play
 
-- Start drops you into strata 01, RAIN, with 22 simulated RF.
+- Connect wallet, under the title, reads the Friends you hold. In the MetaMask browser it prompts that wallet. Anywhere else, the same button opens the MetaMask app. Pick a Friend, then Dive. That NFT's on-chain sprite is the diver.
+- Start with nothing selected dives as the stand-in, strata 01, RAIN, with 22 simulated RF.
 - Steer with A and D, the arrow keys, the on-screen chevrons, or by dragging. A and the left chevron turn left.
 - W or up boosts. S or down brakes.
 - Space, K, or BURN spends 1 RF on a Burn Capsule and phases you. While phased, hazards pass through you and nearby RF is pulled in.
@@ -55,11 +56,11 @@ FriendSDK v0.1.4 settles each capsule on a preview ledger with a shadow balance 
 `node --experimental-strip-types --test src/game/sim.test.ts` — 6 tests, all passing (Ash sink, Drip redeem, empty-wallet refusal, A turns left, seal stays shut until the quota, strata 01 cracks after the quota). The static page build (`npm run pages`) succeeds.
 
 - Economy is simulated on purpose. No live token leaves a wallet.
-- The preview does not connect a wallet or draw a Generations sprite. The diver is original art.
-- The stage is full screen, not locked to the SDK's 960×640 frame.
+- Connect reads ownership and the canonical Generations bitmap. It does not sign a burn.
+- Without a wallet, the diver is original art.
+- The stage fills the visible screen, including the MetaMask browser's fullscreen control.
 - Best score and lifetime burn stay in this browser (`localStorage`).
-- A real-wallet playthrough is not part of this build.
 
 ## Credits
 
-FriendSDK v0.1.4 from [spokesz/friendsdk](https://github.com/spokesz/friendsdk). SDK code is Apache-2.0. No SDK character artwork is used. Dive art and tones are original and synthesized in the browser.
+FriendSDK v0.1.4 from [spokesz/friendsdk](https://github.com/spokesz/friendsdk). SDK code is Apache-2.0. A connected diver uses that Friend's canonical Generations bitmap. Scenery, the stand-in, and tones are original.

@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react"
 import { ChevronLeft, ChevronRight, Flame, Pause, Play, RotateCcw, Volume2, VolumeX } from "lucide-react"
+import { createFriendWalletSession, type FriendWalletSnapshot } from "@rarefriends/friendsdk/wallet"
 import { createAudio } from "@/game/audio"
 import { createScene, drawFrame } from "@/game/draw"
 import { EXPECTED_LABEL, STIPEND_RF, outcomeTable } from "@/game/economy"
+import { listDivers, findMetaMaskProvider, metaMaskDappUrl, type Diver } from "@/game/identity"
 import { LEVELS, createSim, levelOf, startRun, step, type Input, type Phase, type Sim } from "@/game/sim"
 import { defaultSave, loadSave, writeSave, type Save } from "@/game/save"
 
@@ -26,6 +28,7 @@ type Hud = {
   fault: string
   sdkBurns: number
   drips: number
+  diverLabel: string
 }
 
 const TABLE = outcomeTable()
@@ -53,6 +56,7 @@ function hudOf(sim: Sim): Hud {
     fault: econ?.fault ?? "",
     sdkBurns: econ?.sdkBurns ?? 0,
     drips: econ?.drips ?? 0,
+    diverLabel: sim.diver ? `${sim.diver.label} · Gen ${sim.diver.generation}` : "",
   }
 }
 
@@ -62,6 +66,27 @@ function readSteer(held: Set<string> | string[]) {
   if (has("KeyA") || has("ArrowLeft")) steer += 1
   if (has("KeyD") || has("ArrowRight")) steer -= 1
   return Math.max(-1, Math.min(1, steer))
+}
+
+function inMetaMaskBrowser(): boolean {
+  return typeof navigator !== "undefined" && /MetaMaskMobile/i.test(navigator.userAgent)
+}
+
+/** MetaMask's browser lies about 100vh, and its fullscreen button often updates late. */
+function syncVisibleViewport(): void {
+  const viewport = window.visualViewport
+  const innerH = window.innerHeight
+  let height = Math.round(viewport?.height ?? innerH)
+  let top = Math.round(viewport?.offsetTop ?? 0)
+  if (inMetaMaskBrowser() && innerH >= window.screen.height * 0.9 && innerH > height + 24) {
+    height = innerH
+    top = 0
+  }
+  const root = document.documentElement
+  const nextH = `${Math.max(1, height)}px`
+  const nextT = `${Math.max(0, top)}px`
+  if (root.style.getPropertyValue("--app-h") !== nextH) root.style.setProperty("--app-h", nextH)
+  if (root.style.getPropertyValue("--app-top") !== nextT) root.style.setProperty("--app-top", nextT)
 }
 
 export function WalletsApp() {
@@ -78,6 +103,16 @@ export function WalletsApp() {
   const saveRef = useRef<Save>(defaultSave())
   const [hud, setHud] = useState<Hud>(() => hudOf(simRef.current as Sim))
   const [save, setSave] = useState<Save>(defaultSave())
+  const [wallet, setWallet] = useState<FriendWalletSnapshot | null>(null)
+  const [divers, setDivers] = useState<Diver[]>([])
+  const [picked, setPicked] = useState<string | null>(null)
+  const [walletNote, setWalletNote] = useState("")
+  const [walletBusy, setWalletBusy] = useState(false)
+  const [dappUrl, setDappUrl] = useState<string | null>(null)
+  const [inWalletBrowser, setInWalletBrowser] = useState(false)
+  const sessionRef = useRef<ReturnType<typeof createFriendWalletSession> | null>(null)
+  const stopRef = useRef<(() => void) | null>(null)
+  const bindRef = useRef<(session: ReturnType<typeof createFriendWalletSession>) => void>(() => {})
   const audioRef = useRef<ReturnType<typeof createAudio> | null>(null)
 
   useEffect(() => {
@@ -87,6 +122,55 @@ export function WalletsApp() {
     mutedRef.current = loaded.muted
     const systemReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches
     reducedRef.current = loaded.reduced ?? systemReduced
+  }, [])
+
+  useEffect(() => {
+    syncVisibleViewport()
+    const viewport = window.visualViewport
+    viewport?.addEventListener("resize", syncVisibleViewport)
+    viewport?.addEventListener("scroll", syncVisibleViewport)
+    window.addEventListener("resize", syncVisibleViewport)
+    window.addEventListener("orientationchange", syncVisibleViewport)
+    window.addEventListener("focus", syncVisibleViewport)
+    const timer = window.setInterval(syncVisibleViewport, inMetaMaskBrowser() ? 250 : 1000)
+    return () => {
+      viewport?.removeEventListener("resize", syncVisibleViewport)
+      viewport?.removeEventListener("scroll", syncVisibleViewport)
+      window.removeEventListener("resize", syncVisibleViewport)
+      window.removeEventListener("orientationchange", syncVisibleViewport)
+      window.removeEventListener("focus", syncVisibleViewport)
+      window.clearInterval(timer)
+    }
+  }, [])
+
+  useEffect(() => {
+    const bind = (session: ReturnType<typeof createFriendWalletSession>) => {
+      stopRef.current?.()
+      const previous = sessionRef.current
+      if (previous && previous !== session) previous.dispose()
+      sessionRef.current = session
+      setWallet(session.getSnapshot())
+      stopRef.current = session.subscribe(() => {
+        const snap = session.getSnapshot()
+        setWallet(snap)
+        if (!snap.account) {
+          setDivers([])
+          setPicked(null)
+          const sim = simRef.current
+          if (sim) sim.diver = null
+        }
+      })
+    }
+    bindRef.current = bind
+    bind(createFriendWalletSession())
+    setDappUrl(metaMaskDappUrl())
+    setInWalletBrowser(inMetaMaskBrowser())
+    return () => {
+      stopRef.current?.()
+      stopRef.current = null
+      sessionRef.current?.dispose()
+      sessionRef.current = null
+    }
   }, [])
 
   useEffect(() => {
@@ -246,8 +330,59 @@ export function WalletsApp() {
     const sim = simRef.current
     if (!sim) return
     audioRef.current?.unlock()
-    startRun(sim)
+    const diver = divers.find((friend) => friend.id === picked) ?? null
+    sim.diver = diver
+    startRun(sim, diver ? BigInt(diver.id) : undefined)
     setHud(hudOf(sim))
+  }
+
+  const connectWallet = async () => {
+    if (walletBusy) return
+    setWalletBusy(true)
+    setWalletNote("")
+    try {
+      const injected = findMetaMaskProvider()
+      let session = sessionRef.current
+      const named = session?.getSnapshot().wallets.find((choice) => /meta ?mask/i.test(choice.name))
+      if (!named && injected) {
+        const next = createFriendWalletSession({ provider: injected })
+        bindRef.current(next)
+        session = next
+      }
+      if (!session || (!named && !injected)) {
+        const url = metaMaskDappUrl()
+        if (url && !inMetaMaskBrowser()) {
+          window.location.assign(url)
+          return
+        }
+        setWalletNote(
+          inMetaMaskBrowser()
+            ? "MetaMask is open, but it didn't hand over the wallet. Tap Connect wallet again."
+            : "Open the MetaMask app and load this page in its browser, then tap Connect wallet.",
+        )
+        return
+      }
+      let snap = await session.connect(named?.id)
+      if (snap.status === "wrong-network") snap = await session.switchNetwork()
+      setWallet(snap)
+      if (snap.status !== "connected" || !snap.account) {
+        setWalletNote(snap.error ?? "Wallet did not connect.")
+        return
+      }
+      const found = await listDivers(snap.account)
+      setDivers(found.divers)
+      const first = found.divers[0] ?? null
+      setPicked(first?.id ?? null)
+      const sim = simRef.current
+      if (sim) sim.diver = first
+      if (!first) setWalletNote("No eligible Generations NFT in this wallet. It has to be hardwired, generation 1 or higher.")
+      else if (found.hidden > 0) setWalletNote(`${found.hidden} Friends stayed hidden by the contract.`)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not read this wallet."
+      setWalletNote(message.slice(0, 180))
+    } finally {
+      setWalletBusy(false)
+    }
   }
 
   const toggleMute = () => {
@@ -280,7 +415,7 @@ export function WalletsApp() {
   }
 
   return (
-    <div className="relative h-dvh w-full overflow-hidden bg-bg text-fg">
+    <div className="stage bg-bg text-fg">
       <canvas
         ref={canvasRef}
         className="absolute inset-0 h-full w-full touch-none"
@@ -307,6 +442,7 @@ export function WalletsApp() {
             <div>
               <p className="font-sans text-xs tracking-widest text-primary">STRATA {hud.layer}</p>
               <h1 className="font-display text-4xl leading-none text-fg">{hud.name}</h1>
+              {hud.diverLabel ? <p className="font-sans text-xs text-accent">{hud.diverLabel}</p> : null}
             </div>
             <div className="flex items-center gap-2">
               <p className="text-right font-sans text-xs text-muted">
@@ -427,13 +563,75 @@ export function WalletsApp() {
                 <p className="font-sans text-xs tracking-widest text-primary">RARE FRIENDS · VIBEATHON</p>
                 <h1 className="font-display text-7xl leading-none text-fg">WALLETS</h1>
                 <p className="mt-1 font-display text-2xl tracking-wide text-accent">SIMULATION DIVE</p>
+                <button
+                  type="button"
+                  className="mt-4 flex h-14 w-full items-center justify-center bg-primary font-display text-3xl tracking-wide text-bg"
+                  onClick={() => void connectWallet()}
+                  disabled={walletBusy}
+                >
+                  {walletBusy ? "Reading wallet" : wallet?.account ? "Wallet connected" : "Connect wallet"}
+                </button>
+                {wallet?.account ? (
+                  <p className="mt-2 font-sans text-xs text-muted">
+                    {wallet.account.slice(0, 6)}…{wallet.account.slice(-4)}
+                    {inWalletBrowser ? " · MetaMask" : ""}
+                  </p>
+                ) : dappUrl && !inWalletBrowser ? (
+                  <a href={dappUrl} className="mt-2 block font-sans text-xs text-accent">
+                    Open in the MetaMask app
+                  </a>
+                ) : null}
+                {walletNote ? <p className="mt-2 font-sans text-xs text-accent">{walletNote}</p> : null}
                 <p className="mt-3 max-w-md font-sans text-sm leading-relaxed text-muted">
-                  This Friend is the wallet. Five strata, from code rain to a hungry horizon. Scoop $RF and burn
-                  it to phase. Ash does not come back.
+                  Connect to dive as your Generations NFT. Connecting does not spend RF. Or start as the stand-in.
                 </p>
+                {divers.length > 0 ? (
+                  <ul className="mt-3 grid gap-2">
+                    {divers.map((friend) => (
+                      <li key={friend.id}>
+                        <button
+                          type="button"
+                          className={
+                            "h-14 w-full border px-3 text-left font-sans text-xs text-fg " +
+                            (picked === friend.id ? "border-primary" : "border-border")
+                          }
+                          aria-pressed={picked === friend.id}
+                          onClick={() => {
+                            setPicked(friend.id)
+                            const sim = simRef.current
+                            if (sim) sim.diver = friend
+                          }}
+                        >
+                          {friend.label}
+                          <span className="block text-muted">
+                            Gen {friend.generation} · {friend.family}
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                    <li>
+                      <button
+                        type="button"
+                        className={
+                          "h-14 w-full border px-3 text-left font-sans text-xs text-fg " +
+                          (picked ? "border-border" : "border-primary")
+                        }
+                        aria-pressed={!picked}
+                        onClick={() => {
+                          setPicked(null)
+                          const sim = simRef.current
+                          if (sim) sim.diver = null
+                        }}
+                      >
+                        STAND-IN
+                        <span className="block text-muted">Dive without your NFT</span>
+                      </button>
+                    </li>
+                  </ul>
+                ) : null}
                 <div className="mt-4 flex flex-wrap gap-2">
                   <button type="button" className="h-14 min-w-40 flex-1 bg-primary px-6 font-display text-3xl tracking-wide text-bg" onClick={begin}>
-                    Start
+                    {picked ? "Dive" : "Start"}
                   </button>
                   <button type="button" className="h-14 border border-border px-4 font-sans text-xs text-fg" onClick={toggleMute} aria-pressed={save.muted}>
                     {save.muted ? "SOUND OFF" : "SOUND ON"}

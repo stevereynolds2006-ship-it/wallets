@@ -51,12 +51,12 @@ function hush(p: Promise<unknown>, econ: Economy, label: string) {
   })
 }
 
-export function createEconomy(opts?: { roll?: () => number }): Economy {
+export function createEconomy(opts?: { roll?: () => number; friendId?: bigint }): Economy {
   let roll = 0
   const preview = createGamePreview(definition, {
     stake: SHADOW_RF,
     rfBalance: SHADOW_RF,
-    friendId: 1n,
+    friendId: opts?.friendId ?? 1n,
     draw: () => roll,
   })
   let plays = 0

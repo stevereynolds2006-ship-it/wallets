@@ -1,4 +1,5 @@
 import { createEconomy, type Economy } from "./economy.ts"
+import type { Diver } from "./identity.ts"
 
 export const LEVELS = [
   {
@@ -163,6 +164,8 @@ export type Sim = {
   spawnIndex: number
   rng: number
   economy: Economy | null
+  /** Set when a connected wallet picks a Generations NFT. Null is the stand-in. */
+  diver: Diver | null
   hazards: Hazard[]
   coins: Coin[]
   particles: Particle[]
@@ -227,6 +230,7 @@ export function createSim(): Sim {
     spawnIndex: 0,
     rng: 0x51a7e,
     economy: null,
+    diver: null,
     hazards: Array.from({ length: 40 }, hazard),
     coins: Array.from({ length: 32 }, coin),
     particles: Array.from({ length: 140 }, particle),
@@ -333,8 +337,8 @@ function beginLevel(sim: Sim, index: number) {
   clearPool(sim.coins)
 }
 
-export function startRun(sim: Sim) {
-  sim.economy = createEconomy()
+export function startRun(sim: Sim, friendId?: bigint) {
+  sim.economy = createEconomy(friendId ? { friendId } : undefined)
   sim.integrity = 3
   sim.x = 0
   sim.vx = 0

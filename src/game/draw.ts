@@ -1,3 +1,4 @@
+import { spriteFrame } from "@rarefriends/friendsdk/sprites"
 import { PALETTE } from "./palette"
 import { LEVELS, levelOf, type Sim } from "./sim"
 
@@ -100,6 +101,45 @@ function paintSprite(
       const ch = row[c]
       if (!ch || ch === ".") continue
       ctx.fillStyle = ch === "A" ? PALETTE.amber : ch === "W" ? PALETTE.bone : ch === "d" || ch === "D" ? deep : body
+      ctx.fillRect(c * scale, r * scale, scale, scale)
+    }
+  }
+  ctx.restore()
+}
+
+function paintNft(
+  ctx: CanvasRenderingContext2D,
+  sim: Sim,
+  x: number,
+  y: number,
+  scale: number,
+  hot: boolean,
+  reduced: boolean,
+) {
+  const diver = sim.diver
+  if (!diver) return
+  const facing = sim.yaw > 0.18 ? "left" : sim.yaw < -0.18 ? "right" : "down"
+  const walking = sim.phase === "play" && sim.speed > 8
+  const frame = Math.floor(sim.time * (reduced ? 2 : 8)) % 8
+  const rows = spriteFrame(diver.sprites, facing, walking, frame).frame.rows
+  const cols = rows[0]?.length ?? 16
+  ctx.save()
+  ctx.translate(x, y)
+  ctx.translate(-(cols * scale) / 2, -rows.length * scale + scale)
+  const ink = hot ? PALETTE.amberHot : PALETTE.bone
+  for (let r = 0; r < rows.length; r++) {
+    const row = rows[r] ?? ""
+    for (let c = 0; c < row.length; c++) {
+      if (row[c] !== "#") continue
+      ctx.fillStyle = "#021108"
+      ctx.fillRect(c * scale - 1, r * scale - 1, scale + 2, scale + 2)
+    }
+  }
+  for (let r = 0; r < rows.length; r++) {
+    const row = rows[r] ?? ""
+    for (let c = 0; c < row.length; c++) {
+      if (row[c] !== "#") continue
+      ctx.fillStyle = ink
       ctx.fillRect(c * scale, r * scale, scale, scale)
     }
   }
@@ -359,10 +399,12 @@ export function drawFrame(
       ctx.fillRect(friendX - scale, playerY + bob - 2, scale * 2, flame)
       ctx.globalAlpha = 1
     }
-    ctx.fillStyle = "rgba(3,8,6,0.78)"
-    ctx.beginPath()
-    ctx.arc(friendX, playerY + bob - scale * 7, scale * 11, 0, Math.PI * 2)
-    ctx.fill()
+    if (!sim.diver) {
+      ctx.fillStyle = "rgba(3,8,6,0.78)"
+      ctx.beginPath()
+      ctx.arc(friendX, playerY + bob - scale * 7, scale * 11, 0, Math.PI * 2)
+      ctx.fill()
+    }
     const glow = ctx.createRadialGradient(friendX, playerY + bob - scale * 7, 4, friendX, playerY + bob - scale * 6, scale * 16)
     glow.addColorStop(0, sim.phaseTime > 0 ? "rgba(255,178,10,0.55)" : "rgba(61,255,138,0.35)")
     glow.addColorStop(1, "rgba(0,0,0,0)")
@@ -370,15 +412,19 @@ export function drawFrame(
     ctx.beginPath()
     ctx.arc(friendX, playerY + bob - scale * 7, scale * 16, 0, Math.PI * 2)
     ctx.fill()
-    paintSprite(
-      ctx,
-      friendX,
-      playerY + bob,
-      scale,
-      Math.floor(sim.time * 8) % 2,
-      sim.phaseTime > 0,
-      reduced ? 0 : -sim.yaw * 0.45,
-    )
+    if (sim.diver) {
+      paintNft(ctx, sim, friendX, playerY + bob, Math.max(4, Math.round(scale * 0.72)), sim.phaseTime > 0, reduced)
+    } else {
+      paintSprite(
+        ctx,
+        friendX,
+        playerY + bob,
+        scale,
+        Math.floor(sim.time * 8) % 2,
+        sim.phaseTime > 0,
+        reduced ? 0 : -sim.yaw * 0.45,
+      )
+    }
   }
 
   for (let i = 0; i < sim.floaters.length; i++) {

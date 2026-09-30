@@ -22,12 +22,31 @@
   }
 
   html,
-  body {
-    height: 100%;
+  body,
+  #root {
+    height: var(--app-h, 100dvh);
     overflow: hidden;
+    overscroll-behavior: none;
     background: var(--color-bg);
     color: var(--color-fg);
   }
+
+  html,
+  body {
+    position: fixed;
+    top: var(--app-top, 0px);
+    left: 0;
+    width: 100%;
+    margin: 0;
+    touch-action: manipulation;
+  }
+}
+
+.stage {
+  position: relative;
+  width: 100%;
+  height: var(--app-h, 100dvh);
+  overflow: hidden;
 }
 
 .safe-top {
@@ -39,7 +58,7 @@
 }
 
 .sheet {
-  max-height: 78dvh;
+  max-height: calc(var(--app-h, 100dvh) - 1.25rem);
 }
 
 .wallets-hot {
