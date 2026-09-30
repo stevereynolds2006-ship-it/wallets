@@ -1,0 +1,11 @@
+{
+  "name": "WALLETS Simulation Dive",
+  "consumable": "Burn Capsule",
+  "price": "1000000000000000000",
+  "outcomes": [
+    { "name": "Ash", "chanceBps": 5500, "reward": "0" },
+    { "name": "Cinder", "chanceBps": 2500, "reward": "0" },
+    { "name": "Echo", "chanceBps": 1500, "reward": "1000000000000000000" },
+    { "name": "Drip", "chanceBps": 500, "reward": "3000000000000000000" }
+  ]
+}

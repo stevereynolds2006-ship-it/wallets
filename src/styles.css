@@ -1,0 +1,57 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #030806;
+  --color-surface: #07140e;
+  --color-fg: #e7fff2;
+  --color-muted: #8fb39a;
+  --color-primary: #3dff8a;
+  --color-accent: #ffb20a;
+  --color-border: #1c3d2c;
+  --font-sans: "IBM Plex Mono", ui-monospace, monospace;
+  --font-display: "Big Shoulders Display", "Arial Narrow", sans-serif;
+  --radius: 2px;
+}
+
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  html,
+  body {
+    height: 100%;
+    overflow: hidden;
+    background: var(--color-bg);
+    color: var(--color-fg);
+  }
+}
+
+.safe-top {
+  padding-top: max(0.75rem, env(safe-area-inset-top));
+}
+
+.safe-bottom {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+.sheet {
+  max-height: 78dvh;
+}
+
+.wallets-hot {
+  animation: wallets-hot 0.35s ease-in-out infinite;
+}
+
+@keyframes wallets-hot {
+  50% {
+    filter: brightness(1.2);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wallets-hot {
+    animation: none;
+  }
+}
