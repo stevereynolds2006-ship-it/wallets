@@ -21,7 +21,7 @@ npm run dev
 
 Open the printed URL (normally `http://127.0.0.1:8080`).
 
-Burns stay simulated on the stand-in. Connect a wallet, pick a Friend, and Dive asks once for 10 RF from that account into the Friend. The wallet stays closed during play. Prizes are not paid back in RF.
+Burns stay simulated on the stand-in. Connect a wallet, pick a Friend, and dive. If that dive fails, MetaMask sends 25 RF from the connected account to `0xb7823b2e28484382aa70952a7818712e8ac42a72`. A clear run does not. The wallet stays closed while you play.
 
 **Playable preview:** https://stevereynolds2006-ship-it.github.io/cinder-crew/wallets/
 
@@ -31,7 +31,7 @@ Burns stay simulated on the stand-in. Connect a wallet, pick a Friend, and Dive 
 - Start with nothing selected dives as the stand-in, strata 01, RAIN, with 22 simulated RF.
 - Steer with A and D, the arrow keys, the on-screen chevrons, or by dragging. A and the left chevron turn left.
 - W or up boosts. S or down brakes.
-- Space, K, or BURN phases you. A connected Friend already paid 10 RF on Dive, so burns do not open the wallet. The stand-in spends 1 simulated RF. While phased, hazards pass through you and nearby RF is pulled in.
+- Space, K, or BURN phases you. It does not open the wallet. The stand-in spends 1 simulated RF. While phased, hazards pass through you and nearby RF is pulled in. A connected Friend who fails the dive is asked once for 25 RF.
 - Reach the end of a stratum only after you have burned that stratum's quota. The seal then cracks and the next stratum starts. Five strata end at GARGANTUA.
 - Three hits collapse the dive. Coins add RF to the pocket. A dry pocket refuses the next burn until you scoop more.
 - Mute and reduced motion are on the menu. Escape pauses.
@@ -49,14 +49,14 @@ Burns stay simulated on the stand-in. Connect a wallet, pick a Friend, and Dive 
 
 Strata burn quotas: RAIN 6, GRID 10, WAVE 14, TESSERACT 18, GARGANTUA 24.
 
-FriendSDK v0.1.4 settles each capsule on a preview ledger with a shadow balance so the client can buy, play, settle, and redeem. The number on screen is the 22 RF stipend plus scooped coins, not that shadow balance. A production sink would burn RF from the Friend's canonical wallet on Robinhood Chain.
+FriendSDK v0.1.4 settles each capsule on a preview ledger with a shadow balance so the client can buy, play, settle, and redeem. The number on screen is the 22 RF stipend plus scooped coins, not that shadow balance. Those capsules never move RF. A failed connected dive is separate: 25 RF transfers to `0xb7823b2e28484382aa70952a7818712e8ac42a72`. A clear run does not.
 
 ## Checks and known limits
 
 `node --experimental-strip-types --test src/game/sim.test.ts` — 6 tests, all passing (Ash sink, Drip redeem, empty-wallet refusal, A turns left, seal stays shut until the quota, strata 01 cracks after the quota). The static page build (`npm run pages`) succeeds.
 
-- Economy is simulated on purpose. No live token leaves a wallet.
-- Connect reads ownership and the canonical Generations bitmap. It does not sign a burn.
+- A failed dive with a connected Friend sends 25 RF to `0xb7823b2e28484382aa70952a7818712e8ac42a72`. A clear run does not. The stand-in never sends RF.
+- Connect reads ownership and the canonical Generations bitmap. Burns during play stay simulated.
 - Without a wallet, the diver is original art.
 - The stage fills the visible screen, including the MetaMask browser's fullscreen control.
 - Best score and lifetime burn stay in this browser (`localStorage`).

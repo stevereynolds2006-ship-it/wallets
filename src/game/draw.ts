@@ -275,8 +275,24 @@ export function drawFrame(
 
   ctx.setTransform(1, 0, 0, 1, 0, 0)
   ctx.clearRect(0, 0, w, h)
-  ctx.fillStyle = PALETTE.void
+  const sky = ctx.createLinearGradient(0, 0, 0, h)
+  sky.addColorStop(0, heat > 0.55 ? "#2a1206" : "#062016")
+  sky.addColorStop(0.42, PALETTE.void)
+  sky.addColorStop(1, heat > 0.55 ? "#100804" : "#010403")
+  ctx.fillStyle = sky
   ctx.fillRect(0, 0, w, h)
+  if (!reduced && !attract) {
+    for (let i = 0; i < 48; i++) {
+      const drift = sim.time * (10 + (i % 6) * 4)
+      const sx = ((i * 97) % 1000) / 1000 * w
+      const sy = ((((i * 53) % 100) / 100) * h + (drift % (h * 0.35)) + h) % h
+      ctx.globalAlpha = 0.18 + (i % 5) * 0.08
+      ctx.fillStyle = i % 8 === 0 ? PALETTE.amber : PALETTE.bone
+      const z = i % 4 === 0 ? 2 : 1
+      ctx.fillRect(sx, sy, z, z)
+    }
+    ctx.globalAlpha = 1
+  }
 
   ctx.save()
   if (shake > 0) ctx.translate(Math.sin(sim.time * 90) * shake, Math.cos(sim.time * 70) * shake * 0.6)
@@ -320,10 +336,20 @@ export function drawFrame(
     const s = 3 + depth * (c.value > 1 ? 16 : 11)
     ctx.save()
     ctx.translate(x, y)
-    ctx.scale(Math.max(0.15, Math.abs(Math.sin(c.spin))), 1)
+    ctx.rotate(c.spin)
+    ctx.shadowColor = c.value > 1 ? PALETTE.amberHot : PALETTE.amber
+    ctx.shadowBlur = reduced ? 0 : 12 * depth
+    ctx.strokeStyle = c.value > 1 ? PALETTE.amberHot : PALETTE.amber
+    ctx.lineWidth = Math.max(1.5, s * 0.22)
     ctx.beginPath()
-    ctx.fillStyle = c.value > 1 ? PALETTE.amberHot : PALETTE.amber
     ctx.arc(0, 0, s, 0, Math.PI * 2)
+    ctx.stroke()
+    ctx.beginPath()
+    ctx.arc(0, 0, s * 0.62, Math.PI * 0.15, Math.PI * 1.35)
+    ctx.stroke()
+    ctx.fillStyle = PALETTE.amberHot
+    ctx.beginPath()
+    ctx.arc(0, 0, Math.max(1.5, s * 0.28), 0, Math.PI * 2)
     ctx.fill()
     ctx.restore()
     if (depth > 0.45) {
@@ -344,27 +370,47 @@ export function drawFrame(
     const y = vy + depth * (playerY - vy)
     ctx.save()
     ctx.translate(x, y)
-    ctx.globalAlpha = 0.35 + depth * 0.65
+    ctx.globalAlpha = 0.45 + depth * 0.55
+    ctx.shadowColor = hz.kind === "orbit" || hz.kind === "invert" ? PALETTE.amber : PALETTE.phosphor
+    ctx.shadowBlur = reduced ? 0 : 16 * depth
     if (hz.kind === "invert") {
-      ctx.strokeStyle = PALETTE.amber
+      ctx.strokeStyle = PALETTE.amberHot
       ctx.lineWidth = 2
       ctx.strokeRect(-w * 0.36 * depth - 20, -8 - depth * 10, w * 0.72 * depth + 40, 16 + depth * 20)
     } else if (hz.kind === "tide") {
       const half = 22 + depth * 36
-      ctx.fillStyle = "rgba(61,255,138,0.16)"
+      ctx.fillStyle = "rgba(61,255,138,0.2)"
       ctx.strokeStyle = PALETTE.phosphor
       ctx.lineWidth = 2
       ctx.fillRect(-w, -half, w - half, half * 2)
       ctx.strokeRect(-w, -half, w - half, half * 2)
       ctx.fillRect(half, -half, w, half * 2)
       ctx.strokeRect(half, -half, w, half * 2)
+    } else if (hz.kind === "orbit") {
+      const size = 10 + depth * 28
+      ctx.strokeStyle = PALETTE.amberHot
+      ctx.fillStyle = "rgba(255,178,10,0.18)"
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.arc(0, 0, size, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.stroke()
+      ctx.beginPath()
+      ctx.arc(0, 0, size * 0.45, 0, Math.PI * 2)
+      ctx.stroke()
     } else {
       const size = (8 + depth * 36) * (hz.kind === "bar" ? 1.7 : 1)
-      ctx.strokeStyle = hz.kind === "orbit" ? PALETTE.amber : PALETTE.phosphor
+      ctx.strokeStyle = PALETTE.bone
+      ctx.fillStyle = hz.kind === "shard" ? "rgba(255,231,163,0.16)" : "rgba(61,255,138,0.14)"
       ctx.lineWidth = 2
-      ctx.strokeRect(-size, -size * 0.72, size * 2, size * 1.44)
-      ctx.fillStyle = hz.kind === "orbit" ? "rgba(255,178,10,0.12)" : "rgba(61,255,138,0.08)"
-      ctx.fillRect(-size, -size * 0.72, size * 2, size * 1.44)
+      ctx.beginPath()
+      ctx.moveTo(0, -size)
+      ctx.lineTo(size, 0)
+      ctx.lineTo(0, size * 0.85)
+      ctx.lineTo(-size, 0)
+      ctx.closePath()
+      ctx.fill()
+      ctx.stroke()
     }
     ctx.restore()
   }
@@ -392,6 +438,20 @@ export function drawFrame(
   const blink = sim.iframes > 0 && Math.sin(sim.time * 40) > 0
   if (!blink && sim.phase !== "dead") {
     const scale = attract ? Math.max(7, Math.round(Math.min(w, h) / 70)) : Math.max(5, Math.round(Math.min(w, h) / 92))
+    if (!attract && sim.speed > 8 && !reduced) {
+      ctx.strokeStyle = sim.phaseTime > 0 ? "rgba(255,178,10,0.45)" : "rgba(61,255,138,0.35)"
+      ctx.lineWidth = 2
+      const streak = 18 + sim.speed * 1.4
+      for (let i = 0; i < 5; i++) {
+        const ox = (i - 2) * scale * 1.3
+        ctx.globalAlpha = 0.25 + (1 - Math.abs(i - 2) / 3) * 0.45
+        ctx.beginPath()
+        ctx.moveTo(friendX + ox, playerY + bob + 4)
+        ctx.lineTo(friendX + ox * 0.4, playerY + bob + streak)
+        ctx.stroke()
+      }
+      ctx.globalAlpha = 1
+    }
     if (!attract && (sim.speed > 12 || sim.phase === "play")) {
       ctx.fillStyle = PALETTE.amber
       ctx.globalAlpha = 0.85

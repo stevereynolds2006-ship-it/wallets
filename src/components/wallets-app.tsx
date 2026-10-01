@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight, Flame, Pause, Play, RotateCcw, Volume2, Volu
 import { createFriendWalletSession, type FriendWalletProvider, type FriendWalletSnapshot } from "@rarefriends/friendsdk/wallet"
 import type { Address } from "viem"
 import { createAudio } from "@/game/audio"
-import { COIN, payRareCoin, readRareBalance } from "@/game/coins"
+import { COIN, SINK, payRareCoin, readRareBalance } from "@/game/coins"
 import { createScene, drawFrame } from "@/game/draw"
 import { EXPECTED_LABEL, STIPEND_RF, formatRf, outcomeTable } from "@/game/economy"
 import { listDivers, findMetaMaskProvider, metaMaskDappUrl, type Diver } from "@/game/identity"
@@ -117,6 +117,8 @@ export function WalletsApp() {
   const sessionRef = useRef<ReturnType<typeof createFriendWalletSession> | null>(null)
   const stopRef = useRef<(() => void) | null>(null)
   const bindRef = useRef<(session: ReturnType<typeof createFriendWalletSession>) => void>(() => {})
+  const failStarted = useRef(false)
+  const sendFailRef = useRef<() => void>(() => {})
   const payRef = useRef<{ account: Address; friendId: bigint; provider: FriendWalletProvider } | null>(null)
   const audioRef = useRef<ReturnType<typeof createAudio> | null>(null)
 
@@ -215,6 +217,10 @@ export function WalletsApp() {
       saveRef.current = next
       writeSave(next)
       setSave(next)
+      if (sim.phase === "dead" && sim.diver && payRef.current && !failStarted.current) {
+        failStarted.current = true
+        sendFailRef.current()
+      }
     }
 
     const fx = {
@@ -361,35 +367,42 @@ export function WalletsApp() {
     const sim = simRef.current
     if (!sim || walletBusy) return
     audioRef.current?.unlock()
+    failStarted.current = false
     const diver = divers.find((friend) => friend.id === picked) ?? null
-    if (diver && wallet?.account) {
-      const provider = sessionRef.current?.getProvider() ?? findMetaMaskProvider()
-      if (!provider) {
-        setWalletNote("Connect the wallet on the menu. The dive will not ask again.")
-        return
-      }
-      setWalletBusy(true)
-      setWalletNote("")
-      try {
-        const bal = await readRareBalance(wallet.account)
-        if (bal < COIN) {
-          setWalletNote("Need 10 RF in this wallet. That is the only charge for the dive.")
-          return
-        }
-        await payRareCoin({ account: wallet.account, friendId: BigInt(diver.id), provider })
-        sim.coinLabel = formatRf(await readRareBalance(wallet.account))
-      } catch (error) {
-        const declined = typeof error === "object" && error !== null && "code" in error && error.code === 4001
-        setWalletNote(declined ? "Payment declined. The dive did not start." : error instanceof Error ? error.message.slice(0, 160) : "Payment failed.")
-        return
-      } finally {
-        setWalletBusy(false)
-      }
-    }
     sim.diver = diver
     startRun(sim, diver ? BigInt(diver.id) : undefined)
     if (diver) sim.diver = diver
+    syncPay(wallet?.account ?? null, diver?.id ?? null)
     setHud(hudOf(sim))
+  }
+
+  const sendFailFee = async () => {
+    const pay = payRef.current
+    const sim = simRef.current
+    if (!pay || !sim?.diver || walletBusy) return
+    setWalletBusy(true)
+    setWalletNote("")
+    try {
+      const bal = await readRareBalance(pay.account)
+      if (bal < COIN) {
+        setWalletNote("Need 25 RF in this wallet. A failed dive sends them on.")
+        failStarted.current = false
+        return
+      }
+      await payRareCoin({ account: pay.account, provider: pay.provider, to: SINK })
+      sim.coinLabel = formatRf(await readRareBalance(pay.account))
+      setWalletNote("25 RF sent.")
+      setHud(hudOf(sim))
+    } catch (error) {
+      const declined = typeof error === "object" && error !== null && "code" in error && error.code === 4001
+      failStarted.current = false
+      setWalletNote(declined ? "Payment declined." : error instanceof Error ? error.message.slice(0, 160) : "Payment failed.")
+    } finally {
+      setWalletBusy(false)
+    }
+  }
+  sendFailRef.current = () => {
+    void sendFailFee()
   }
 
   const disconnectWallet = () => {
@@ -668,8 +681,8 @@ export function WalletsApp() {
                 {walletNote ? <p className="mt-2 font-sans text-xs text-accent">{walletNote}</p> : null}
                 {picked ? (
                   <p className="mt-3 max-w-md font-sans text-xs leading-relaxed text-accent">
-                    Dive pays 10 RF once, into this Friend. After that the wallet stays closed. Prizes are not paid
-                    back in RF.
+                    A failed dive sends 25 RF from your wallet to {SINK.slice(0, 6)}…{SINK.slice(-4)}. A clear run does not.
+                    The wallet stays closed while you play.
                   </p>
                 ) : (
                   <p className="mt-3 max-w-md font-sans text-sm leading-relaxed text-muted">
@@ -794,9 +807,24 @@ export function WalletsApp() {
                 <h2 className="font-display text-6xl leading-none">{hud.phase === "won" ? "JACKED OUT" : "ASHED"}</h2>
                 <p className="mt-2 font-sans text-sm text-muted">
                   {hud.phase === "won"
-                    ? "Five strata down. Gargantua kept what you burned."
-                    : "The code closed on WALLETS. The burn still counts."}
+                    ? "Five strata down. Gargantua kept what you burned. No RF left this wallet."
+                    : hud.diverLabel
+                      ? `The dive failed. 25 RF goes to ${SINK.slice(0, 6)}…${SINK.slice(-4)}.`
+                      : "The code closed on WALLETS. The burn still counts."}
                 </p>
+                {hud.phase === "dead" && hud.diverLabel ? (
+                  <button
+                    type="button"
+                    className="mt-3 flex h-14 w-full items-center justify-center border border-accent font-sans text-xs text-accent"
+                    onClick={() => void sendFailFee()}
+                    disabled={walletBusy || walletNote === "25 RF sent."}
+                  >
+                    {walletBusy ? "Sending 25 RF" : walletNote === "25 RF sent." ? "25 RF sent" : "Send 25 RF"}
+                  </button>
+                ) : null}
+                {walletNote && (hud.phase === "dead" || hud.phase === "won") ? (
+                  <p className="mt-2 font-sans text-xs text-accent">{walletNote}</p>
+                ) : null}
                 <dl className="mt-4 grid grid-cols-2 gap-2 font-sans text-sm">
                   <div className="border border-border p-2">
                     <dt className="text-xs text-muted">BURNED</dt>
