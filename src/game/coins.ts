@@ -21,7 +21,7 @@ export const STAKE = 25n * RF
 export const REFUND = STAKE / 2n
 export const COIN = STAKE
 
-const robinhood = defineChain({
+export const robinhood = defineChain({
   id: 4663,
   name: "Robinhood Chain",
   nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
@@ -33,13 +33,13 @@ const abi = parseAbi([
   "function transfer(address to, uint256 value) returns (bool)",
 ])
 
-const reader = createPublicClient({
+export const rfReader = createPublicClient({
   chain: robinhood,
   transport: http(robinhood.rpcUrls.default.http[0]),
 })
 
 export async function readRareBalance(account: Address): Promise<bigint> {
-  return reader.readContract({ address: RF_TOKEN, abi, functionName: "balanceOf", args: [account] })
+  return rfReader.readContract({ address: RF_TOKEN, abi, functionName: "balanceOf", args: [account] })
 }
 
 /** Wallet-confirmed RF transfer. The stake is 25. A clear run is owed 12.5. */
@@ -62,7 +62,7 @@ export async function payRareCoin(opts: {
     functionName: "transfer",
     args: [opts.to, opts.amount ?? COIN],
   })
-  const receipt = await reader.waitForTransactionReceipt({ hash, confirmations: 1 })
+  const receipt = await rfReader.waitForTransactionReceipt({ hash, confirmations: 1 })
   if (receipt.status !== "success") throw new Error("The RF payment reverted.")
   return hash
 }

@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react"
 import { ChevronLeft, ChevronRight, Flame, Pause, Play, RotateCcw, Volume2, VolumeX } from "lucide-react"
 import { createFriendWalletSession, type FriendWalletProvider, type FriendWalletSnapshot } from "@rarefriends/friendsdk/wallet"
-import type { Address } from "viem"
+import type { Address, Hex } from "viem"
 import { createAudio } from "@/game/audio"
 import { COIN, REFUND, SINK, payRareCoin, readRareBalance } from "@/game/coins"
+import { ESCROW, rememberDive, stakeDive } from "@/game/escrow"
 import { createScene, drawFrame } from "@/game/draw"
 import { EXPECTED_LABEL, STIPEND_RF, formatRf, outcomeTable } from "@/game/economy"
 import { listDivers, findMetaMaskProvider, metaMaskDappUrl, type Diver } from "@/game/identity"
@@ -122,6 +123,8 @@ export function WalletsApp() {
   const feeOwedRef = useRef(false)
   const lockFeeRef = useRef<() => void>(() => {})
   const payRef = useRef<{ account: Address; friendId: bigint; provider: FriendWalletProvider } | null>(null)
+  const diveRef = useRef<Hex | null>(null)
+  const recordDiveRef = useRef<(won: boolean) => void>(() => {})
   const audioRef = useRef<ReturnType<typeof createAudio> | null>(null)
 
   useEffect(() => {
@@ -238,6 +241,7 @@ export function WalletsApp() {
       saveRef.current = next
       writeSave(next)
       setSave(next)
+      recordDiveRef.current(sim.phase === "won")
     }
 
     const fx = {
@@ -401,9 +405,17 @@ export function WalletsApp() {
           setWalletNote("Need 25 RF in this wallet. Beat the dive and half, 12.5 RF, comes back.")
           return
         }
-        await payRareCoin({ account, provider, to: SINK, amount: COIN })
-        setStaked(true)
-        setWalletNote("25 RF in. Beat the dive and 12.5 RF comes back.")
+        if (ESCROW) {
+          setWalletNote("Confirm 25 RF into the game wallet.")
+          diveRef.current = await stakeDive({ account, provider })
+          setStaked(true)
+          setWalletNote("25 RF is in the game wallet. Beat the dive and 12.5 RF comes back.")
+        } else {
+          diveRef.current = null
+          await payRareCoin({ account, provider, to: SINK, amount: COIN })
+          setStaked(true)
+          setWalletNote("25 RF in. Beat the dive and 12.5 RF comes back.")
+        }
       } catch (error) {
         const declined = typeof error === "object" && error !== null && "code" in error && error.code === 4001
         setStaked(false)
@@ -416,6 +428,7 @@ export function WalletsApp() {
       }
     } else {
       setStaked(false)
+      diveRef.current = null
     }
     sim.diver = diver
     startRun(sim, diver ? BigInt(diver.id) : undefined)
@@ -426,6 +439,12 @@ export function WalletsApp() {
   lockFeeRef.current = () => {
     feeOwedRef.current = true
     setFeeOwed(true)
+  }
+  recordDiveRef.current = (won) => {
+    const diveId = diveRef.current
+    const player = payRef.current?.account
+    if (!ESCROW || !diveId || !player) return
+    rememberDive({ diveId, player, won, escrow: ESCROW })
   }
 
   const disconnectWallet = () => {
@@ -729,7 +748,9 @@ export function WalletsApp() {
                 {walletNote ? <p className="mt-2 font-sans text-xs text-accent">{walletNote}</p> : null}
                 {picked ? (
                   <p className="mt-3 max-w-md font-sans text-xs leading-relaxed text-accent">
-                    Dive sends 25 RF from your wallet to {SINK.slice(0, 6)}…{SINK.slice(-4)} before play. Beat the dive and half, {formatRf(REFUND, 1)} RF, comes back. A failed dive keeps the 25. The wallet stays closed while you play.
+                    {ESCROW
+                      ? `Dive locks 25 RF in the game wallet ${ESCROW.slice(0, 6)}…${ESCROW.slice(-4)}. Beat the dive and half, ${formatRf(REFUND, 1)} RF, comes back. A failed dive keeps the 25. The wallet stays closed while you play.`
+                      : `Dive sends 25 RF from your wallet to ${SINK.slice(0, 6)}…${SINK.slice(-4)} before play. Beat the dive and half, ${formatRf(REFUND, 1)} RF, comes back. A failed dive keeps the 25. The wallet stays closed while you play.`}
                   </p>
                 ) : (
                   <p className="mt-3 max-w-md font-sans text-sm leading-relaxed text-muted">
@@ -855,10 +876,14 @@ export function WalletsApp() {
                 <p className="mt-2 font-sans text-sm text-muted">
                   {hud.phase === "won"
                     ? staked
-                      ? `Five strata down. You paid 25 RF. Half is owed back: ${formatRf(REFUND, 1)} RF.`
+                      ? ESCROW
+                        ? `Five strata down. 25 RF is in the game wallet. Half is owed back: ${formatRf(REFUND, 1)} RF.`
+                        : `Five strata down. You paid 25 RF. Half is owed back: ${formatRf(REFUND, 1)} RF.`
                       : "Five strata down. Gargantua kept what you burned. No RF left this wallet."
                     : staked
-                      ? `The dive failed. The 25 RF stays at ${SINK.slice(0, 6)}…${SINK.slice(-4)}.`
+                      ? ESCROW
+                        ? `The dive failed. The 25 RF stays in the game wallet.`
+                        : `The dive failed. The 25 RF stays at ${SINK.slice(0, 6)}…${SINK.slice(-4)}.`
                       : "The code closed on WALLETS. The burn still counts."}
                 </p>
                 {walletNote && (hud.phase === "dead" || hud.phase === "won") ? (

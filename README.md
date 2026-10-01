@@ -56,6 +56,7 @@ FriendSDK v0.1.4 settles each capsule on a preview ledger with a shadow balance 
 `node --experimental-strip-types --test src/game/sim.test.ts` — 6 tests, all passing (Ash sink, Drip redeem, empty-wallet refusal, A turns left, seal stays shut until the quota, strata 01 cracks after the quota). The static page build (`npm run pages`) succeeds.
 
 - A connected dive sends 25 RF to `0xb7823b2e28484382aa70952a7818712e8ac42a72` before play. A clear run is owed 12.5 RF back from that address. This page cannot send that return. A failed dive keeps the 25. The stand-in never sends RF.
+- `contracts/WalletsDiveEscrow.sol` is the game wallet. Set `ESCROW` in `src/game/escrow.ts` after it is deployed. Until then the dive still sends the 25 RF straight to the address above. The page never holds the settler key.
 - Connect reads ownership and the canonical Generations bitmap. Burns during play stay simulated.
 - Without a wallet, the diver is original art.
 - The stage fills the visible screen, including the MetaMask browser's fullscreen control.
