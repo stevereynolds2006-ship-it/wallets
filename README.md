@@ -21,7 +21,7 @@ npm run dev
 
 Open the printed URL (normally `http://127.0.0.1:8080`).
 
-Burns stay simulated on the stand-in. Connect a wallet, pick a Friend, and dive. MetaMask sends 25 RF from the connected account to `0xb7823b2e28484382aa70952a7818712e8ac42a72` before the run starts. Beat the dive and half, 12.5 RF, is the return from that address. A failed dive keeps the 25. The page can take the stake. It cannot sign the return, because that address is a normal wallet. The wallet stays closed while you play.
+Burns stay simulated on the stand-in. Connect a wallet, pick a Friend, and dive. MetaMask sends 25 RF from the connected account into that Friend's token-bound wallet before the run starts. The coins stay there. A clear run does not send more, and a failed run does not send more. The wallet stays closed while you play.
 
 **Playable preview:** https://stevereynolds2006-ship-it.github.io/cinder-crew/wallets/
 
@@ -31,7 +31,7 @@ Burns stay simulated on the stand-in. Connect a wallet, pick a Friend, and dive.
 - Start with nothing selected dives as the stand-in, strata 01, RAIN, with 22 simulated RF.
 - Steer with A and D, the arrow keys, the on-screen chevrons, or by dragging. A and the left chevron turn left.
 - W or up boosts. S or down brakes.
-- Space, K, or BURN phases you. It does not open the wallet. The stand-in spends 1 simulated RF. While phased, hazards pass through you and nearby RF is pulled in. A connected Friend pays 25 RF before the dive. A clear run is owed 12.5 RF back.
+- Space, K, or BURN phases you. It does not open the wallet. The stand-in spends 1 simulated RF. While phased, hazards pass through you and nearby RF is pulled in. A connected Friend pays 25 RF into that NFT's wallet before the dive.
 - Reach the end of a stratum only after you have burned that stratum's quota. The seal then cracks and the next stratum starts. Five strata end at GARGANTUA.
 - Three hits collapse the dive. Coins add RF to the pocket. A dry pocket refuses the next burn until you scoop more.
 - Mute and reduced motion are on the menu. Escape pauses.
@@ -49,14 +49,13 @@ Burns stay simulated on the stand-in. Connect a wallet, pick a Friend, and dive.
 
 Strata burn quotas: RAIN 6, GRID 10, WAVE 14, TESSERACT 18, GARGANTUA 24.
 
-FriendSDK v0.1.4 settles each capsule on a preview ledger with a shadow balance so the client can buy, play, settle, and redeem. The number on screen is the 22 RF stipend plus scooped coins, not that shadow balance. Those capsules never move RF. A connected dive is separate: 25 RF goes to `0xb7823b2e28484382aa70952a7818712e8ac42a72` before play. Clearing it is owed 12.5 RF back from that address.
+FriendSDK v0.1.4 settles each capsule on a preview ledger with a shadow balance so the client can buy, play, settle, and redeem. The number on screen is the 22 RF stipend plus scooped coins, not that shadow balance. Those capsules never move RF. A connected dive is separate: 25 RF goes to that Friend's token-bound wallet before play.
 
 ## Checks and known limits
 
 `node --experimental-strip-types --test src/game/sim.test.ts` — 6 tests, all passing (Ash sink, Drip redeem, empty-wallet refusal, A turns left, seal stays shut until the quota, strata 01 cracks after the quota). The static page build (`npm run pages`) succeeds.
 
-- A connected dive sends 25 RF to `0xb7823b2e28484382aa70952a7818712e8ac42a72` before play. A clear run is owed 12.5 RF back from that address. This page cannot send that return. A failed dive keeps the 25. The stand-in never sends RF.
-- `contracts/WalletsDiveEscrow.sol` is the game wallet. Set `ESCROW` in `src/game/escrow.ts` after it is deployed. Until then the dive still sends the 25 RF straight to the address above. The page never holds the settler key.
+- A connected dive sends 25 RF to that Friend's token-bound wallet before play. It stays there. The stand-in never sends RF.
 - Connect reads ownership and the canonical Generations bitmap. Burns during play stay simulated.
 - Without a wallet, the diver is original art.
 - The stage fills the visible screen, including the MetaMask browser's fullscreen control.

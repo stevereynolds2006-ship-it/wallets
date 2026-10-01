@@ -9,6 +9,7 @@ export type Diver = {
   label: string
   generation: number
   family: string
+  wallet: Address
   sprites: GenerationSprites
 }
 
@@ -81,6 +82,7 @@ export async function listDivers(account: Address): Promise<{ divers: Diver[]; h
       label: friend.label,
       generation: gate.generation,
       family: sprites.familyName,
+      wallet: friend.walletAddress,
       sprites,
     })
   }
