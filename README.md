@@ -21,7 +21,7 @@ npm run dev
 
 Open the printed URL (normally `http://127.0.0.1:8080`).
 
-Burns stay simulated on the stand-in. Connect a wallet, pick a Friend, and dive. If that dive fails, the screen stays up until MetaMask confirms 25 RF from the connected account to `0xb7823b2e28484382aa70952a7818712e8ac42a72`. Menu and another dive stay shut until it sends. Closing the tab asks them to stay. A clear run does not. The wallet stays closed while you play.
+Burns stay simulated on the stand-in. Connect a wallet, pick a Friend, and dive. MetaMask sends 25 RF from the connected account to `0xb7823b2e28484382aa70952a7818712e8ac42a72` before the run starts. Beat the dive and half, 12.5 RF, is the return from that address. A failed dive keeps the 25. The page can take the stake. It cannot sign the return, because that address is a normal wallet. The wallet stays closed while you play.
 
 **Playable preview:** https://stevereynolds2006-ship-it.github.io/cinder-crew/wallets/
 
@@ -31,7 +31,7 @@ Burns stay simulated on the stand-in. Connect a wallet, pick a Friend, and dive.
 - Start with nothing selected dives as the stand-in, strata 01, RAIN, with 22 simulated RF.
 - Steer with A and D, the arrow keys, the on-screen chevrons, or by dragging. A and the left chevron turn left.
 - W or up boosts. S or down brakes.
-- Space, K, or BURN phases you. It does not open the wallet. The stand-in spends 1 simulated RF. While phased, hazards pass through you and nearby RF is pulled in. A connected Friend who fails the dive is asked once for 25 RF.
+- Space, K, or BURN phases you. It does not open the wallet. The stand-in spends 1 simulated RF. While phased, hazards pass through you and nearby RF is pulled in. A connected Friend pays 25 RF before the dive. A clear run is owed 12.5 RF back.
 - Reach the end of a stratum only after you have burned that stratum's quota. The seal then cracks and the next stratum starts. Five strata end at GARGANTUA.
 - Three hits collapse the dive. Coins add RF to the pocket. A dry pocket refuses the next burn until you scoop more.
 - Mute and reduced motion are on the menu. Escape pauses.
@@ -49,13 +49,13 @@ Burns stay simulated on the stand-in. Connect a wallet, pick a Friend, and dive.
 
 Strata burn quotas: RAIN 6, GRID 10, WAVE 14, TESSERACT 18, GARGANTUA 24.
 
-FriendSDK v0.1.4 settles each capsule on a preview ledger with a shadow balance so the client can buy, play, settle, and redeem. The number on screen is the 22 RF stipend plus scooped coins, not that shadow balance. Those capsules never move RF. A failed connected dive is separate: 25 RF transfers to `0xb7823b2e28484382aa70952a7818712e8ac42a72`. A clear run does not.
+FriendSDK v0.1.4 settles each capsule on a preview ledger with a shadow balance so the client can buy, play, settle, and redeem. The number on screen is the 22 RF stipend plus scooped coins, not that shadow balance. Those capsules never move RF. A connected dive is separate: 25 RF goes to `0xb7823b2e28484382aa70952a7818712e8ac42a72` before play. Clearing it is owed 12.5 RF back from that address.
 
 ## Checks and known limits
 
 `node --experimental-strip-types --test src/game/sim.test.ts` — 6 tests, all passing (Ash sink, Drip redeem, empty-wallet refusal, A turns left, seal stays shut until the quota, strata 01 cracks after the quota). The static page build (`npm run pages`) succeeds.
 
-- A failed dive with a connected Friend stays on screen until 25 RF is confirmed to `0xb7823b2e28484382aa70952a7818712e8ac42a72`. A clear run does not. The stand-in never sends RF.
+- A connected dive sends 25 RF to `0xb7823b2e28484382aa70952a7818712e8ac42a72` before play. A clear run is owed 12.5 RF back from that address. This page cannot send that return. A failed dive keeps the 25. The stand-in never sends RF.
 - Connect reads ownership and the canonical Generations bitmap. Burns during play stay simulated.
 - Without a wallet, the diver is original art.
 - The stage fills the visible screen, including the MetaMask browser's fullscreen control.

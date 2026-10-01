@@ -14,9 +14,12 @@ import {
 
 /** Canonical $RAREFRIENDS token on Robinhood Chain. */
 export const RF_TOKEN: Address = getAddress("0x0779369854d3EcdEA927206718FFD7730C67B71f")
-/** A failed dive sends the play fee here. A clear run does not. */
+/** A connected dive sends the stake here before play. A clear run is owed half back. */
 export const SINK: Address = getAddress("0xb7823b2e28484382aa70952a7818712e8ac42a72")
-export const COIN = 25n * RF
+export const STAKE = 25n * RF
+/** Half of the stake. 25 RF splits evenly at 18 decimals. */
+export const REFUND = STAKE / 2n
+export const COIN = STAKE
 
 const robinhood = defineChain({
   id: 4663,
@@ -39,11 +42,12 @@ export async function readRareBalance(account: Address): Promise<bigint> {
   return reader.readContract({ address: RF_TOKEN, abi, functionName: "balanceOf", args: [account] })
 }
 
-/** Wallet-confirmed transfer of 25 RF. Used when a connected dive fails. */
+/** Wallet-confirmed RF transfer. The stake is 25. A clear run is owed 12.5. */
 export async function payRareCoin(opts: {
   account: Address
   provider: FriendWalletProvider
   to: Address
+  amount?: bigint
 }): Promise<Hex> {
   const wallet = createWalletClient({
     account: opts.account,
@@ -56,7 +60,7 @@ export async function payRareCoin(opts: {
     address: RF_TOKEN,
     abi,
     functionName: "transfer",
-    args: [opts.to, COIN],
+    args: [opts.to, opts.amount ?? COIN],
   })
   const receipt = await reader.waitForTransactionReceipt({ hash, confirmations: 1 })
   if (receipt.status !== "success") throw new Error("The RF payment reverted.")
