@@ -5,7 +5,7 @@ Fly through five levels as your Rare Friend. A connected run spends 25 $RAREFRIE
 ## What you do
 
 1. Connect your wallet and pick a Friend you own. That NFT is you on screen.
-2. Pay 25 RF. It goes into that Friend's own wallet and stays there. The dive does not start until the payment confirms.
+2. Pay 25 RF. It goes into that Friend's own wallet and stays there. The dive does not start until the payment confirms. A paid dive gets 4 hits, 40 starting coins, and a longer phase. The stand-in gets 3 hits and 22 coins.
 3. Steer and dodge. Pick up coins. Spend 1 simulated coin to phase so hazards pass through you.
 4. Burn that level's quota to open the next one. There are five levels. Three hits ends the run.
 5. Don't want to pay? Choose Stand-in. That run is free and the coins are pretend.
@@ -61,7 +61,7 @@ FriendSDK v0.1.4 settles each capsule on a preview ledger with a shadow balance 
 
 ## Checks and known limits
 
-`node --experimental-strip-types --test src/game/sim.test.ts` — 6 tests, all passing (Ash sink, Drip redeem, empty-wallet refusal, A turns left, seal stays shut until the quota, strata 01 cracks after the quota). The static page build (`npm run pages`) succeeds.
+`node --experimental-strip-types --test src/game/sim.test.ts` — 7 tests, all passing (Ash sink, Drip redeem, empty-wallet refusal, A turns left, seal stays shut until the quota, strata 01 cracks after the quota, paid dive gets 4 hits and 40 coins). The static page build (`npm run pages`) succeeds.
 
 - A connected dive sends 25 RF to that Friend's token-bound wallet before Dive unlocks. It stays there. The stand-in never sends RF.
 - Connect reads ownership and the canonical Generations bitmap. Burns during play stay simulated.

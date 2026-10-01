@@ -69,6 +69,12 @@ export const LEVELS = [
   },
 ] as const
 
+export const FREE_HITS = 3
+export const PAID_HITS = 4
+export const PAID_POCKET = 40
+export const FREE_PHASE = 0.74
+export const PAID_PHASE = 1.15
+
 export type Level = (typeof LEVELS)[number]
 export type Phase = "menu" | "play" | "seal" | "pause" | "dead" | "won"
 
@@ -168,6 +174,8 @@ export type Sim = {
   diver: Diver | null
   /** Real RF balance label when a wallet is paying. Null uses the simulated stipend. */
   coinLabel: string | null
+  /** True after a connected Friend paid. Stand-in stays false. */
+  paid: boolean
   hazards: Hazard[]
   coins: Coin[]
   particles: Particle[]
@@ -207,7 +215,7 @@ export function createSim(): Sim {
     vx: 0,
     yaw: 0,
     speed: 0,
-    integrity: 3,
+    integrity: FREE_HITS,
     burnedLevel: 0,
     chain: 0,
     chainMax: 0,
@@ -234,6 +242,7 @@ export function createSim(): Sim {
     economy: null,
     diver: null,
     coinLabel: null,
+    paid: false,
     hazards: Array.from({ length: 40 }, hazard),
     coins: Array.from({ length: 32 }, coin),
     particles: Array.from({ length: 140 }, particle),
@@ -294,7 +303,7 @@ function burst(sim: Sim, x: number, z: number, amber: boolean, n: number) {
 
 export function applyBurn(sim: Sim, result: BurnResult, fx: Fx) {
   sim.burnLock = 0.46
-  sim.phaseTime = 0.74
+  sim.phaseTime = sim.paid ? PAID_PHASE : FREE_PHASE
   sim.burnedLevel += 1
   sim.shock = 0.02
   sim.lastBurn = result.name
@@ -360,8 +369,10 @@ function beginLevel(sim: Sim, index: number) {
 }
 
 export function startRun(sim: Sim, friendId?: bigint) {
-  sim.economy = createEconomy(friendId ? { friendId } : undefined)
-  sim.integrity = 3
+  const paid = friendId !== undefined
+  sim.paid = paid
+  sim.economy = createEconomy(paid ? { friendId, pocket: PAID_POCKET } : undefined)
+  sim.integrity = paid ? PAID_HITS : FREE_HITS
   sim.x = 0
   sim.vx = 0
   sim.yaw = 0

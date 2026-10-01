@@ -7,7 +7,7 @@ import { COIN, payRareCoin, readRareBalance } from "@/game/coins"
 import { createScene, drawFrame } from "@/game/draw"
 import { EXPECTED_LABEL, STIPEND_RF, formatRf, outcomeTable } from "@/game/economy"
 import { listDivers, findMetaMaskProvider, metaMaskDappUrl, type Diver } from "@/game/identity"
-import { LEVELS, createSim, levelOf, startRun, step, type Input, type Phase, type Sim } from "@/game/sim"
+import { LEVELS, FREE_HITS, PAID_HITS, PAID_POCKET, createSim, levelOf, startRun, step, type Input, type Phase, type Sim } from "@/game/sim"
 import { defaultSave, loadSave, writeSave, type Save } from "@/game/save"
 
 type Hud = {
@@ -601,7 +601,7 @@ export function WalletsApp() {
           </div>
           <div className="mt-2 flex items-center justify-between gap-3 font-sans text-xs text-muted">
             <span className="flex gap-1" aria-label={`${hud.integrity} integrity`}>
-              {[0, 1, 2].map((i) => (
+              {[0, 1, 2, 3].map((i) => (
                 <span key={i} className={i < hud.integrity ? "h-2 w-7 bg-primary shadow-[0_0_8px_rgba(61,255,138,0.8)]" : "h-2 w-7 bg-border"} />
               ))}
             </span>
@@ -713,7 +713,7 @@ export function WalletsApp() {
                 <h1 className="font-display text-7xl leading-none text-fg drop-shadow-[0_0_16px_rgba(61,255,138,0.4)]">WALLETS</h1>
                 <p className="mt-1 font-display text-2xl tracking-wide text-accent">SIMULATION DIVE</p>
                 <p className="mt-3 max-w-md font-sans text-sm leading-relaxed text-muted">
-                  Fly through five levels as your Rare Friend. Pay 25 RF into that NFT's wallet first, then dive. Coins you burn during the run are simulated. No wallet? Start free as the stand-in.
+                  Fly through five levels as your Rare Friend. Pay 25 RF into that NFT's wallet first. A paid dive gets {PAID_HITS} hits, {PAID_POCKET} starting coins, and a longer phase. The stand-in gets {FREE_HITS} hits and {STIPEND_RF} coins. Coins burned during the run are simulated.
                 </p>
                 {wallet?.account ? (
                   <>
@@ -747,7 +747,7 @@ export function WalletsApp() {
                 {walletNote ? <p className="mt-2 font-sans text-xs text-accent">{walletNote}</p> : null}
                 {picked ? (
                   <p className="mt-3 max-w-md font-sans text-xs leading-relaxed text-accent">
-                    Pay 25 RF to {pickedFriend ? `${pickedFriend.wallet.slice(0, 6)}…${pickedFriend.wallet.slice(-4)}` : "this Friend"}, this Friend's wallet, before the dive can start. It stays there. Nothing starts until that payment confirms.
+                    Pay 25 RF to {pickedFriend ? `${pickedFriend.wallet.slice(0, 6)}…${pickedFriend.wallet.slice(-4)}` : "this Friend"}, this Friend's wallet, before the dive can start. It stays there. Paid perks: {PAID_HITS} hits, {PAID_POCKET} starting coins, and a longer phase. The stand-in gets {FREE_HITS} hits and {STIPEND_RF} coins.
                   </p>
                 ) : (
                   <p className="mt-3 max-w-md font-sans text-sm leading-relaxed text-muted">
@@ -799,7 +799,7 @@ export function WalletsApp() {
                         }}
                       >
                         STAND-IN
-                        <span className="block text-muted">Dive without your NFT</span>
+                        <span className="block text-muted">Free. {FREE_HITS} hits, {STIPEND_RF} coins</span>
                       </button>
                     </li>
                   </ul>

@@ -51,7 +51,7 @@ function hush(p: Promise<unknown>, econ: Economy, label: string) {
   })
 }
 
-export function createEconomy(opts?: { roll?: () => number; friendId?: bigint }): Economy {
+export function createEconomy(opts?: { roll?: () => number; friendId?: bigint; pocket?: number }): Economy {
   let roll = 0
   const preview = createGamePreview(definition, {
     stake: SHADOW_RF,
@@ -64,7 +64,7 @@ export function createEconomy(opts?: { roll?: () => number; friendId?: bigint })
 
   const econ: Economy = {
     definition,
-    wallet: STIPEND_RF,
+    wallet: opts?.pocket ?? STIPEND_RF,
     burned: 0,
     returned: 0,
     collected: 0,

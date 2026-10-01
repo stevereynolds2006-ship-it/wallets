@@ -2,7 +2,7 @@ import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import { RF } from "@rarefriends/friendsdk/game"
 import { SHADOW_START, createEconomy } from "./economy.ts"
-import { createSim, startRun, step, type Input } from "./sim.ts"
+import { createSim, startRun, step, PAID_HITS, PAID_POCKET, FREE_HITS, type Input } from "./sim.ts"
 
 const idle: Input = { steer: 0, pointer: null, boost: false, brake: false, burn: false }
 
@@ -78,5 +78,21 @@ describe("dive controls", () => {
     }
     assert.equal(sim.phase, "seal")
     assert.ok(sim.burnedLevel >= 6)
+  })
+})
+
+describe("paid dive", () => {
+  it("gives the paid run an extra hit and a deeper pocket", () => {
+    const paid = createSim()
+    startRun(paid, 1n)
+    assert.equal(paid.paid, true)
+    assert.equal(paid.integrity, PAID_HITS)
+    assert.equal(paid.economy?.wallet, PAID_POCKET)
+
+    const free = createSim()
+    startRun(free)
+    assert.equal(free.paid, false)
+    assert.equal(free.integrity, FREE_HITS)
+    assert.equal(free.economy?.wallet, 22)
   })
 })
