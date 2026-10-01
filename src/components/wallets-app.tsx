@@ -7,7 +7,7 @@ import { COIN, payRareCoin, readRareBalance } from "@/game/coins"
 import { createScene, drawFrame } from "@/game/draw"
 import { EXPECTED_LABEL, STIPEND_RF, formatRf, outcomeTable } from "@/game/economy"
 import { listDivers, findMetaMaskProvider, metaMaskDappUrl, type Diver } from "@/game/identity"
-import { LEVELS, applyBurn, createSim, denyBurn, levelOf, startRun, step, type Input, type Phase, type Sim } from "@/game/sim"
+import { LEVELS, createSim, levelOf, startRun, step, type Input, type Phase, type Sim } from "@/game/sim"
 import { defaultSave, loadSave, writeSave, type Save } from "@/game/save"
 
 type Hud = {
@@ -227,39 +227,6 @@ export function WalletsApp() {
       die: () => audio.hit(),
     }
 
-    let paying = false
-    const charge = () => {
-      const pay = payRef.current
-      const economy = sim.economy
-      if (!pay || !economy || paying) return
-      if (sim.phase !== "play" && sim.phase !== "seal") return
-      if (sim.burnLock > 0 || sim.phaseTime > 0.08) return
-      paying = true
-      void (async () => {
-        try {
-          const bal = await readRareBalance(pay.account)
-          sim.coinLabel = formatRf(bal)
-          if (bal < COIN) {
-            denyBurn(sim, "NEED 10 RF", fx)
-            setHud(hudOf(sim))
-            return
-          }
-          await payRareCoin(pay)
-          const result = economy.burn({ paid: true })
-          if (result) applyBurn(sim, result, fx)
-          sim.coinLabel = formatRf(await readRareBalance(pay.account))
-          setHud(hudOf(sim))
-        } catch (error) {
-          const declined = typeof error === "object" && error !== null && "code" in error && error.code === 4001
-          denyBurn(sim, declined ? "DECLINED" : "NO PAY", fx)
-          economy.fault = declined ? "Payment declined." : error instanceof Error ? error.message.slice(0, 140) : "Payment failed."
-          setHud(hudOf(sim))
-        } finally {
-          paying = false
-        }
-      })()
-    }
-
     const inputOf = (): Input => {
       const held = override.current ?? keys.current
       let steer = readSteer(held) + dock.current
@@ -298,10 +265,6 @@ export function WalletsApp() {
       if (sim.phase !== "pause") sim.time += dt
       if (sim.phase === "dead" || sim.phase === "won") sim.endT += dt
       const input = inputOf()
-      if (payRef.current && input.burn) {
-        input.burn = false
-        charge()
-      }
       if (sim.phase === "play" || sim.phase === "seal") {
         acc += dt
         let guard = 0
@@ -394,15 +357,38 @@ export function WalletsApp() {
       })
   }
 
-  const begin = () => {
+  const begin = async () => {
     const sim = simRef.current
-    if (!sim) return
+    if (!sim || walletBusy) return
     audioRef.current?.unlock()
     const diver = divers.find((friend) => friend.id === picked) ?? null
+    if (diver && wallet?.account) {
+      const provider = sessionRef.current?.getProvider() ?? findMetaMaskProvider()
+      if (!provider) {
+        setWalletNote("Connect the wallet on the menu. The dive will not ask again.")
+        return
+      }
+      setWalletBusy(true)
+      setWalletNote("")
+      try {
+        const bal = await readRareBalance(wallet.account)
+        if (bal < COIN) {
+          setWalletNote("Need 10 RF in this wallet. That is the only charge for the dive.")
+          return
+        }
+        await payRareCoin({ account: wallet.account, friendId: BigInt(diver.id), provider })
+        sim.coinLabel = formatRf(await readRareBalance(wallet.account))
+      } catch (error) {
+        const declined = typeof error === "object" && error !== null && "code" in error && error.code === 4001
+        setWalletNote(declined ? "Payment declined. The dive did not start." : error instanceof Error ? error.message.slice(0, 160) : "Payment failed.")
+        return
+      } finally {
+        setWalletBusy(false)
+      }
+    }
     sim.diver = diver
     startRun(sim, diver ? BigInt(diver.id) : undefined)
     if (diver) sim.diver = diver
-    syncPay(wallet?.account ?? null, diver?.id ?? null)
     setHud(hudOf(sim))
   }
 
@@ -655,7 +641,7 @@ export function WalletsApp() {
                 {walletNote ? <p className="mt-2 font-sans text-xs text-accent">{walletNote}</p> : null}
                 {picked ? (
                   <p className="mt-3 max-w-md font-sans text-xs leading-relaxed text-accent">
-                    Each burn pays 10 RF from your wallet into this Friend. MetaMask asks first. Prizes are not paid
+                    Dive pays 10 RF once, into this Friend. After that the wallet stays closed. Prizes are not paid
                     back in RF.
                   </p>
                 ) : (
@@ -714,8 +700,8 @@ export function WalletsApp() {
                   </ul>
                 ) : null}
                 <div className="mt-4 flex flex-wrap gap-2">
-                  <button type="button" className="h-14 min-w-40 flex-1 bg-primary px-6 font-display text-3xl tracking-wide text-bg" onClick={begin}>
-                    {picked ? "Dive" : "Start"}
+                  <button type="button" className="h-14 min-w-40 flex-1 bg-primary px-6 font-display text-3xl tracking-wide text-bg" onClick={() => void begin()} disabled={walletBusy}>
+                    {walletBusy ? "Paying" : picked ? "Dive" : "Start"}
                   </button>
                   <button type="button" className="h-14 border border-border px-4 font-sans text-xs text-fg" onClick={toggleMute} aria-pressed={save.muted}>
                     {save.muted ? "SOUND OFF" : "SOUND ON"}
@@ -809,7 +795,7 @@ export function WalletsApp() {
                 </p>
                 {hud.fault && <p className="mt-2 font-sans text-xs text-accent">{hud.fault}</p>}
                 <div className="mt-4 flex gap-2">
-                  <button type="button" className="flex h-14 flex-1 items-center justify-center gap-2 bg-primary font-display text-3xl text-bg" onClick={begin}>
+                  <button type="button" className="flex h-14 flex-1 items-center justify-center gap-2 bg-primary font-display text-3xl text-bg" onClick={() => void begin()} disabled={walletBusy}>
                     <RotateCcw size={18} />
                     Dive again
                   </button>
