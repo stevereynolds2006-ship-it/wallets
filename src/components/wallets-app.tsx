@@ -392,6 +392,22 @@ export function WalletsApp() {
     setHud(hudOf(sim))
   }
 
+  const disconnectWallet = () => {
+    sessionRef.current?.disconnect()
+    setDivers([])
+    setPicked(null)
+    setWalletNote("")
+    payRef.current = null
+    const sim = simRef.current
+    if (sim) {
+      sim.diver = null
+      sim.coinLabel = null
+    }
+    const snap = sessionRef.current?.getSnapshot()
+    if (snap) setWallet(snap)
+    if (sim) setHud(hudOf(sim))
+  }
+
   const connectWallet = async () => {
     if (walletBusy) return
     setWalletBusy(true)
@@ -620,20 +636,31 @@ export function WalletsApp() {
                 <p className="font-sans text-xs tracking-widest text-primary">RARE FRIENDS · VIBEATHON</p>
                 <h1 className="font-display text-7xl leading-none text-fg">WALLETS</h1>
                 <p className="mt-1 font-display text-2xl tracking-wide text-accent">SIMULATION DIVE</p>
-                <button
-                  type="button"
-                  className="mt-4 flex h-14 w-full items-center justify-center bg-primary font-display text-3xl tracking-wide text-bg"
-                  onClick={() => void connectWallet()}
-                  disabled={walletBusy}
-                >
-                  {walletBusy ? "Reading wallet" : wallet?.account ? "Wallet connected" : "Connect wallet"}
-                </button>
                 {wallet?.account ? (
-                  <p className="mt-2 font-sans text-xs text-muted">
-                    {wallet.account.slice(0, 6)}…{wallet.account.slice(-4)}
-                    {inWalletBrowser ? " · MetaMask" : ""}
-                  </p>
-                ) : dappUrl && !inWalletBrowser ? (
+                  <>
+                    <p className="mt-4 font-sans text-xs text-muted">
+                      {wallet.account.slice(0, 6)}…{wallet.account.slice(-4)}
+                      {inWalletBrowser ? " · MetaMask" : ""}
+                    </p>
+                    <button
+                      type="button"
+                      className="mt-2 flex h-14 w-full items-center justify-center border border-border font-sans text-xs text-fg"
+                      onClick={disconnectWallet}
+                    >
+                      Disconnect wallet
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    className="mt-4 flex h-14 w-full items-center justify-center bg-primary font-display text-3xl tracking-wide text-bg"
+                    onClick={() => void connectWallet()}
+                    disabled={walletBusy}
+                  >
+                    {walletBusy ? "Reading wallet" : "Connect wallet"}
+                  </button>
+                )}
+                {!wallet?.account && dappUrl && !inWalletBrowser ? (
                   <a href={dappUrl} className="mt-2 block font-sans text-xs text-accent">
                     Open in the MetaMask app
                   </a>

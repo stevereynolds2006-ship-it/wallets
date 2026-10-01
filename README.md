@@ -27,7 +27,7 @@ Burns stay simulated on the stand-in. Connect a wallet, pick a Friend, and Dive 
 
 ## Play
 
-- Connect wallet, under the title, reads the Friends you hold. In the MetaMask browser it prompts that wallet. Anywhere else, the same button opens the MetaMask app. Pick a Friend, then Dive. That NFT's on-chain sprite is the diver.
+- Connect wallet, under the title, reads the Friends you hold. In the MetaMask browser it prompts that wallet. Anywhere else, the same button opens the MetaMask app. Pick a Friend, then Dive. That NFT's on-chain sprite is the diver. Disconnect wallet forgets that Friend on this page. It does not spend RF.
 - Start with nothing selected dives as the stand-in, strata 01, RAIN, with 22 simulated RF.
 - Steer with A and D, the arrow keys, the on-screen chevrons, or by dragging. A and the left chevron turn left.
 - W or up boosts. S or down brakes.
