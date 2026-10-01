@@ -5,18 +5,18 @@ import {
   createWalletClient,
   custom,
   defineChain,
+  getAddress,
   http,
-  isAddress,
   parseAbi,
-  zeroAddress,
   type Address,
   type Hex,
 } from "viem"
 
-/** Canonical $RAREFRIENDS and Generations contracts on Robinhood Chain. */
-export const RF_TOKEN: Address = "0x0779369854d3EcdEA927206718FFD7730C67B71f"
-export const GENERATIONS: Address = "0x14C49e6118F46525dE9ab41a51cBAA3c6EBF181D"
-export const COIN = 10n * RF
+/** Canonical $RAREFRIENDS token on Robinhood Chain. */
+export const RF_TOKEN: Address = getAddress("0x0779369854d3EcdEA927206718FFD7730C67B71f")
+/** A failed dive sends the play fee here. A clear run does not. */
+export const SINK: Address = getAddress("0xb7823b2e28484382aa70952a7818712e8ac42a72")
+export const COIN = 25n * RF
 
 const robinhood = defineChain({
   id: 4663,
@@ -28,8 +28,6 @@ const robinhood = defineChain({
 const abi = parseAbi([
   "function balanceOf(address) view returns (uint256)",
   "function transfer(address to, uint256 value) returns (bool)",
-  "function tokenBoundAccount(uint256) view returns (address)",
-  "event Transfer(address indexed from, address indexed to, uint256 value)",
 ])
 
 const reader = createPublicClient({
@@ -41,19 +39,12 @@ export async function readRareBalance(account: Address): Promise<bigint> {
   return reader.readContract({ address: RF_TOKEN, abi, functionName: "balanceOf", args: [account] })
 }
 
-/** Wallet-confirmed transfer of 10 RF into the selected Friend's own wallet. */
+/** Wallet-confirmed transfer of 25 RF. Used when a connected dive fails. */
 export async function payRareCoin(opts: {
   account: Address
-  friendId: bigint
   provider: FriendWalletProvider
+  to: Address
 }): Promise<Hex> {
-  const recipient = await reader.readContract({
-    address: GENERATIONS,
-    abi,
-    functionName: "tokenBoundAccount",
-    args: [opts.friendId],
-  })
-  if (!isAddress(recipient) || recipient === zeroAddress) throw new Error("This Friend has no wallet to pay.")
   const wallet = createWalletClient({
     account: opts.account,
     chain: robinhood,
@@ -65,7 +56,7 @@ export async function payRareCoin(opts: {
     address: RF_TOKEN,
     abi,
     functionName: "transfer",
-    args: [recipient, COIN],
+    args: [opts.to, COIN],
   })
   const receipt = await reader.waitForTransactionReceipt({ hash, confirmations: 1 })
   if (receipt.status !== "success") throw new Error("The RF payment reverted.")
