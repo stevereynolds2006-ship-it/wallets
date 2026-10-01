@@ -282,8 +282,8 @@ export function WalletsApp() {
       }
       const playing = sim.phase === "play" || sim.phase === "seal" || sim.phase === "pause"
       drawFrame(ctx, scene, sim, w, h, reducedRef.current, {
-        top: playing ? 118 * dpr : 0,
-        bottom: playing ? 108 * dpr : 0,
+        top: playing ? 156 * dpr : 0,
+        bottom: playing ? 120 * dpr : 0,
       })
     }
 
@@ -553,21 +553,21 @@ export function WalletsApp() {
       />
 
       {playing && (
-        <header className="safe-top pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-col gap-2 px-4">
-          <div className="flex items-start justify-between gap-3">
+        <header className="safe-top pointer-events-none absolute inset-x-0 top-0 z-10 bg-gradient-to-b from-bg via-bg/80 to-transparent px-3 pb-6">
+          <div className="flex items-start justify-between gap-3 pt-1">
             <div>
               <p className="font-sans text-xs tracking-widest text-primary">STRATA {hud.layer}</p>
-              <h1 className="font-display text-4xl leading-none text-fg">{hud.name}</h1>
+              <h1 className="font-display text-4xl leading-none text-fg drop-shadow-[0_0_12px_rgba(61,255,138,0.35)]">{hud.name}</h1>
               {hud.diverLabel ? <p className="font-sans text-xs text-accent">{hud.diverLabel}</p> : null}
             </div>
             <div className="flex items-center gap-2">
-              <p className="text-right font-sans text-xs text-muted">
+              <p className="border border-border bg-surface/80 px-2 py-1 text-right font-sans text-xs text-muted">
                 <span className="block tracking-widest text-accent">RF</span>
                 <span className="font-display text-4xl leading-none text-fg">{hud.coinText}</span>
               </p>
               <button
                 type="button"
-                className="pointer-events-auto grid h-11 w-11 place-items-center border border-border bg-surface text-fg"
+                className="pointer-events-auto grid h-11 w-11 place-items-center border border-border bg-surface/90 text-fg"
                 onClick={toggleMute}
                 aria-label={save.muted ? "Unmute" : "Mute"}
                 aria-pressed={save.muted}
@@ -576,7 +576,7 @@ export function WalletsApp() {
               </button>
               <button
                 type="button"
-                className="pointer-events-auto grid h-11 w-11 place-items-center border border-border bg-surface text-fg"
+                className="pointer-events-auto grid h-11 w-11 place-items-center border border-border bg-surface/90 text-fg"
                 onClick={() => {
                   const sim = simRef.current
                   if (!sim) return
@@ -589,33 +589,47 @@ export function WalletsApp() {
               </button>
             </div>
           </div>
-          <div className="flex items-center justify-between gap-3 font-sans text-xs text-muted">
+          <div className="mt-2 flex items-center justify-between gap-3 font-sans text-xs text-muted">
             <span className="flex gap-1" aria-label={`${hud.integrity} integrity`}>
               {[0, 1, 2].map((i) => (
-                <span key={i} className={i < hud.integrity ? "h-2.5 w-6 bg-primary" : "h-2.5 w-6 bg-border"} />
+                <span key={i} className={i < hud.integrity ? "h-2 w-7 bg-primary shadow-[0_0_8px_rgba(61,255,138,0.8)]" : "h-2 w-7 bg-border"} />
               ))}
             </span>
             <span>
-              BURN {hud.burnedLevel}/{hud.quota}
-              {hud.chain > 1 ? ` · CHAIN ${hud.chain}` : ""}
+              {hud.chain > 1 ? `CHAIN ${hud.chain}` : "POCKET"}
               {hud.lastBurn ? ` · ${hud.lastBurn.toUpperCase()}` : ""}
             </span>
           </div>
-          <div className="h-1.5 w-full bg-border" aria-hidden>
-            <div className="h-full bg-accent" style={{ width: `${Math.min(100, (hud.burnedLevel / hud.quota) * 100)}%` }} />
+          <div className="mt-2 grid grid-cols-2 gap-3">
+            <div>
+              <div className="mb-1 flex justify-between font-sans text-[10px] tracking-widest text-muted">
+                <span>SEAL</span>
+                <span>{hud.burnedLevel}/{hud.quota}</span>
+              </div>
+              <div className="h-1.5 w-full bg-border" aria-hidden>
+                <div className="h-full bg-accent shadow-[0_0_8px_rgba(255,178,10,0.7)]" style={{ width: `${Math.min(100, (hud.burnedLevel / hud.quota) * 100)}%` }} />
+              </div>
+            </div>
+            <div>
+              <div className="mb-1 flex justify-between font-sans text-[10px] tracking-widest text-muted">
+                <span>DEPTH</span>
+                <span>{Math.round(hud.progress * 100)}</span>
+              </div>
+              <div className="h-1 w-full bg-border" aria-hidden>
+                <div className="h-full bg-primary" style={{ width: `${hud.progress * 100}%` }} />
+              </div>
+            </div>
           </div>
-          <div className="h-1 w-full bg-border" aria-hidden>
-            <div className="h-full bg-primary" style={{ width: `${hud.progress * 100}%` }} />
-          </div>
-          <p className="font-sans text-xs tracking-widest text-muted">SIMULATED RF · NOT A CHAIN BURN</p>
+          <p className="mt-2 font-sans text-[10px] tracking-widest text-muted">BURNS STAY SIMULATED</p>
         </header>
       )}
 
       {playing && hud.phase !== "pause" && (
-        <div className="safe-bottom absolute inset-x-0 bottom-0 z-10 flex items-end gap-2 px-3">
+        <div className="safe-bottom absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-bg via-bg/75 to-transparent px-3 pt-8">
+          <div className="flex items-end gap-2">
           <button
             type="button"
-            className="grid h-14 w-16 place-items-center border border-border bg-surface text-fg"
+            className="grid h-16 w-16 place-items-center border border-border bg-surface/90 text-fg"
             aria-label="Steer left"
             onPointerDown={(e) => {
               e.currentTarget.setPointerCapture(e.pointerId)
@@ -633,7 +647,7 @@ export function WalletsApp() {
           <button
             type="button"
             className={
-              "flex h-14 flex-1 items-center justify-center gap-2 border border-accent bg-accent font-display text-3xl tracking-wide text-bg" +
+              "flex h-16 flex-1 items-center justify-center gap-2 border border-accent bg-accent font-display text-3xl tracking-wide text-bg shadow-[0_0_24px_rgba(255,178,10,0.35)]" +
               (hud.phasing ? " wallets-hot" : "")
             }
             aria-label="Burn one RF capsule"
@@ -653,7 +667,7 @@ export function WalletsApp() {
           </button>
           <button
             type="button"
-            className="grid h-14 w-16 place-items-center border border-border bg-surface text-fg"
+            className="grid h-16 w-16 place-items-center border border-border bg-surface/90 text-fg"
             aria-label="Steer right"
             onPointerDown={(e) => {
               e.currentTarget.setPointerCapture(e.pointerId)
@@ -668,16 +682,25 @@ export function WalletsApp() {
           >
             <ChevronRight />
           </button>
+          </div>
         </div>
       )}
 
       {showOverlay && (
         <div className="safe-bottom absolute inset-0 z-20 flex flex-col justify-end p-4">
-          <section className="sheet overflow-auto border border-border bg-surface p-4">
+          <section
+            className={
+              "sheet overflow-auto border bg-surface/95 p-4 " +
+              (hud.phase === "dead" && feeOwed
+                ? "border-accent shadow-[0_0_36px_rgba(255,178,10,0.22)]"
+                : "border-primary/40 shadow-[0_0_36px_rgba(61,255,138,0.14)]")
+            }
+          >
+            <div className={"mb-3 h-1 w-14 " + (hud.phase === "dead" && feeOwed ? "bg-accent" : "bg-primary")} />
             {hud.phase === "menu" && (
               <>
                 <p className="font-sans text-xs tracking-widest text-primary">RARE FRIENDS · VIBEATHON</p>
-                <h1 className="font-display text-7xl leading-none text-fg">WALLETS</h1>
+                <h1 className="font-display text-7xl leading-none text-fg drop-shadow-[0_0_16px_rgba(61,255,138,0.4)]">WALLETS</h1>
                 <p className="mt-1 font-display text-2xl tracking-wide text-accent">SIMULATION DIVE</p>
                 {wallet?.account ? (
                   <>

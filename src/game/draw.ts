@@ -201,6 +201,56 @@ function drawHole(
   ctx.moveTo(cx - r * 2.4, cy)
   ctx.lineTo(cx + r * 2.4, cy)
   ctx.stroke()
+
+  ctx.strokeStyle = `rgba(231,255,242,${0.12 + heat * 0.12})`
+  for (let i = 0; i < 4; i++) {
+    const a = spin * 0.35 + (i * Math.PI) / 2
+    ctx.beginPath()
+    ctx.moveTo(cx + Math.cos(a) * r * 0.55, cy + Math.sin(a) * r * 0.2)
+    ctx.lineTo(cx + Math.cos(a) * r * 2.8, cy + Math.sin(a) * r * 0.72)
+    ctx.stroke()
+  }
+}
+
+function drawTunnel(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  cx: number,
+  vy: number,
+  time: number,
+  heat: number,
+  reduced: boolean,
+) {
+  const floor = ctx.createLinearGradient(0, vy, 0, h)
+  floor.addColorStop(0, "rgba(0,0,0,0)")
+  floor.addColorStop(0.2, heat > 0.55 ? "rgba(80,28,6,0.28)" : "rgba(8,48,28,0.38)")
+  floor.addColorStop(1, "rgba(0,0,0,0)")
+  ctx.fillStyle = floor
+  ctx.fillRect(0, vy, w, h - vy)
+
+  const ink = heat > 0.55 ? "255,178,10" : "61,255,138"
+  ctx.lineWidth = 1
+  ctx.strokeStyle = `rgba(${ink},0.28)`
+  for (let i = -8; i <= 8; i++) {
+    ctx.beginPath()
+    ctx.moveTo(cx + i * 6, vy)
+    ctx.lineTo(cx + i * w * 0.085, h)
+    ctx.stroke()
+  }
+  const rows = reduced ? 5 : 9
+  const scroll = reduced ? 0.2 : (time * (0.28 + heat * 0.22)) % 1
+  for (let i = 0; i < rows; i++) {
+    const p = (i / rows + scroll) % 1
+    const y = vy + Math.pow(p, 1.55) * (h - vy)
+    const spread = ((y - vy) / Math.max(1, h - vy)) * w
+    ctx.globalAlpha = 0.12 + p * 0.7
+    ctx.beginPath()
+    ctx.moveTo(cx - spread, y)
+    ctx.lineTo(cx + spread, y)
+    ctx.stroke()
+  }
+  ctx.globalAlpha = 1
 }
 
 function motif(ctx: CanvasRenderingContext2D, w: number, h: number, pattern: string, time: number, cx: number, vy: number) {
@@ -297,6 +347,8 @@ export function drawFrame(
   ctx.save()
   if (shake > 0) ctx.translate(Math.sin(sim.time * 90) * shake, Math.cos(sim.time * 70) * shake * 0.6)
 
+  if (!attract) drawTunnel(ctx, w, h, cx, vy, sim.time, heat, reduced)
+
   ensureRain(scene, w, h, reduced)
   const rainDt = scene.stamp ? Math.min(0.05, Math.max(0, sim.time - scene.stamp)) : 0.016
   scene.stamp = sim.time
@@ -314,7 +366,7 @@ export function drawFrame(
       if (y < -10 || y > h + 10) continue
       const head = k === 0
       const amberTrail = heat > 0.72 || (sim.phaseTime > 0 && k < 3)
-      ctx.globalAlpha = head ? 0.9 : Math.max(0, 0.45 - k * 0.04) * (0.35 + heat * 0.15)
+      ctx.globalAlpha = head ? 0.72 : Math.max(0, 0.3 - k * 0.028) * (0.35 + heat * 0.15)
       ctx.fillStyle = head ? PALETTE.bone : amberTrail ? PALETTE.amber : PALETTE.phosphor
       const idx = Math.floor(col.seed * 20 + sim.time * (reduced ? 0 : 8) + k + i) % GLYPHS.length
       ctx.fillText(GLYPHS[idx] || "0", col.x, y)
@@ -465,6 +517,10 @@ export function drawFrame(
       ctx.arc(friendX, playerY + bob - scale * 7, scale * 11, 0, Math.PI * 2)
       ctx.fill()
     }
+    ctx.fillStyle = "rgba(0,0,0,0.5)"
+    ctx.beginPath()
+    ctx.ellipse(friendX, playerY + bob + scale * 1.4, scale * 7, scale * 2.1, 0, 0, Math.PI * 2)
+    ctx.fill()
     const glow = ctx.createRadialGradient(friendX, playerY + bob - scale * 7, 4, friendX, playerY + bob - scale * 6, scale * 16)
     glow.addColorStop(0, sim.phaseTime > 0 ? "rgba(255,178,10,0.55)" : "rgba(61,255,138,0.35)")
     glow.addColorStop(1, "rgba(0,0,0,0)")
@@ -518,6 +574,27 @@ export function drawFrame(
     ctx.strokeStyle = `rgba(255,178,10,${0.35 + Math.sin(sim.time * 16) * 0.15})`
     ctx.lineWidth = 3
     ctx.strokeRect(8, top + 4, w - 16, bottom - top - 8)
+  }
+
+  if (!attract && sim.phase !== "dead" && sim.phase !== "won") {
+    ctx.strokeStyle = heat > 0.55 ? "rgba(255,178,10,0.55)" : "rgba(61,255,138,0.45)"
+    ctx.lineWidth = 2
+    const arm = Math.max(16, Math.min(28, w * 0.04))
+    const x0 = 12
+    const x1 = w - 12
+    const y0 = top + 8
+    const y1 = bottom - 8
+    const mark = (x: number, y: number, dx: number, dy: number) => {
+      ctx.beginPath()
+      ctx.moveTo(x, y + dy * arm)
+      ctx.lineTo(x, y)
+      ctx.lineTo(x + dx * arm, y)
+      ctx.stroke()
+    }
+    mark(x0, y0, 1, 1)
+    mark(x1, y0, -1, 1)
+    mark(x0, y1, 1, -1)
+    mark(x1, y1, -1, -1)
   }
 
   const vignette = ctx.createRadialGradient(cx, h * 0.45, h * 0.2, cx, h * 0.5, h * 0.72)
