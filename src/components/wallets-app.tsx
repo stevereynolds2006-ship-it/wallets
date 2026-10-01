@@ -712,6 +712,9 @@ export function WalletsApp() {
                 <p className="font-sans text-xs tracking-widest text-primary">RARE FRIENDS · VIBEATHON</p>
                 <h1 className="font-display text-7xl leading-none text-fg drop-shadow-[0_0_16px_rgba(61,255,138,0.4)]">WALLETS</h1>
                 <p className="mt-1 font-display text-2xl tracking-wide text-accent">SIMULATION DIVE</p>
+                <p className="mt-3 max-w-md font-sans text-sm leading-relaxed text-muted">
+                  Fly through five levels as your Rare Friend. Pay 25 RF into that NFT's wallet first, then dive. Coins you burn during the run are simulated. No wallet? Start free as the stand-in.
+                </p>
                 {wallet?.account ? (
                   <>
                     <p className="mt-4 font-sans text-xs text-muted">

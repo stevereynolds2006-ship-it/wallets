@@ -1,6 +1,14 @@
 # WALLETS
 
-Simulation dive. This Friend is the wallet. Scoop simulated $RAREFRIENDS and burn them as FriendSDK chance capsules to phase through five strata. Ash does not come back.
+Fly through five levels as your Rare Friend. A connected run spends 25 $RAREFRIENDS into that NFT's own wallet before the dive can start. Coins you burn during the run are simulated.
+
+## What you do
+
+1. Connect your wallet and pick a Friend you own. That NFT is you on screen.
+2. Pay 25 RF. It goes into that Friend's own wallet and stays there. The dive does not start until the payment confirms.
+3. Steer and dodge. Pick up coins. Spend 1 simulated coin to phase so hazards pass through you.
+4. Burn that level's quota to open the next one. There are five levels. Three hits ends the run.
+5. Don't want to pay? Choose Stand-in. That run is free and the coins are pretend.
 
 **Builder:** Steven Reynolds · [GitHub](https://github.com/stevereynolds2006-ship-it) · [@Sharpbigred](https://x.com/Sharpbigred)
 
