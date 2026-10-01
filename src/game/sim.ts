@@ -1,4 +1,4 @@
-import { createEconomy, type Economy } from "./economy.ts"
+import { createEconomy, type BurnResult, type Economy } from "./economy.ts"
 import type { Diver } from "./identity.ts"
 
 export const LEVELS = [
@@ -166,6 +166,8 @@ export type Sim = {
   economy: Economy | null
   /** Set when a connected wallet picks a Generations NFT. Null is the stand-in. */
   diver: Diver | null
+  /** Real RF balance label when a wallet is paying. Null uses the simulated stipend. */
+  coinLabel: string | null
   hazards: Hazard[]
   coins: Coin[]
   particles: Particle[]
@@ -231,6 +233,7 @@ export function createSim(): Sim {
     rng: 0x51a7e,
     economy: null,
     diver: null,
+    coinLabel: null,
     hazards: Array.from({ length: 40 }, hazard),
     coins: Array.from({ length: 32 }, coin),
     particles: Array.from({ length: 140 }, particle),
@@ -287,6 +290,25 @@ function burst(sim: Sim, x: number, z: number, amber: boolean, n: number) {
     p.life = 0.35 + rnd(sim) * 0.35
     p.amber = amber
   }
+}
+
+export function applyBurn(sim: Sim, result: BurnResult, fx: Fx) {
+  sim.burnLock = 0.46
+  sim.phaseTime = 0.74
+  sim.burnedLevel += 1
+  sim.shock = 0.02
+  sim.lastBurn = result.name
+  burst(sim, sim.x, 0.85, true, 18)
+  if (result.rebate > 0) say(sim, `${result.name.toUpperCase()} +${result.rebate}`, true)
+  else say(sim, result.name.toUpperCase(), true)
+  fx.burn(result.name)
+}
+
+export function denyBurn(sim: Sim, text: string, fx: Fx) {
+  if (sim.denyLock > 0) return
+  sim.denyLock = 0.7
+  say(sim, text, false)
+  fx.deny()
 }
 
 function spawnCoin(sim: Sim, x: number, value: number, z = 12.5) {
@@ -519,21 +541,8 @@ export function step(sim: Sim, input: Input, dt: number, fx: Fx = emptyFx) {
 
   if (input.burn && sim.burnLock <= 0 && sim.phaseTime <= 0.08) {
     const result = sim.economy.burn()
-    if (result) {
-      sim.burnLock = 0.46
-      sim.phaseTime = 0.74
-      sim.burnedLevel += 1
-      sim.shock = 0.02
-      sim.lastBurn = result.name
-      burst(sim, sim.x, 0.85, true, 18)
-      if (result.rebate > 0) say(sim, `${result.name.toUpperCase()} +${result.rebate}`, true)
-      else say(sim, result.name.toUpperCase(), true)
-      fx.burn(result.name)
-    } else if (sim.denyLock <= 0) {
-      sim.denyLock = 0.7
-      say(sim, "NO RF", false)
-      fx.deny()
-    }
+    if (result) applyBurn(sim, result, fx)
+    else denyBurn(sim, "NO RF", fx)
   }
 
   if (sim.sinceHazard >= level.gap) {

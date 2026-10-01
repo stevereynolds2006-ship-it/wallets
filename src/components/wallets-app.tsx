@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react"
 import { ChevronLeft, ChevronRight, Flame, Pause, Play, RotateCcw, Volume2, VolumeX } from "lucide-react"
-import { createFriendWalletSession, type FriendWalletSnapshot } from "@rarefriends/friendsdk/wallet"
+import { createFriendWalletSession, type FriendWalletProvider, type FriendWalletSnapshot } from "@rarefriends/friendsdk/wallet"
+import type { Address } from "viem"
 import { createAudio } from "@/game/audio"
+import { COIN, payRareCoin, readRareBalance } from "@/game/coins"
 import { createScene, drawFrame } from "@/game/draw"
-import { EXPECTED_LABEL, STIPEND_RF, outcomeTable } from "@/game/economy"
+import { EXPECTED_LABEL, STIPEND_RF, formatRf, outcomeTable } from "@/game/economy"
 import { listDivers, findMetaMaskProvider, metaMaskDappUrl, type Diver } from "@/game/identity"
-import { LEVELS, createSim, levelOf, startRun, step, type Input, type Phase, type Sim } from "@/game/sim"
+import { LEVELS, applyBurn, createSim, denyBurn, levelOf, startRun, step, type Input, type Phase, type Sim } from "@/game/sim"
 import { defaultSave, loadSave, writeSave, type Save } from "@/game/save"
 
 type Hud = {
@@ -29,6 +31,7 @@ type Hud = {
   sdkBurns: number
   drips: number
   diverLabel: string
+  coinText: string
 }
 
 const TABLE = outcomeTable()
@@ -57,6 +60,7 @@ function hudOf(sim: Sim): Hud {
     sdkBurns: econ?.sdkBurns ?? 0,
     drips: econ?.drips ?? 0,
     diverLabel: sim.diver ? `${sim.diver.label} · Gen ${sim.diver.generation}` : "",
+    coinText: sim.coinLabel ?? String(econ?.wallet ?? STIPEND_RF),
   }
 }
 
@@ -113,6 +117,7 @@ export function WalletsApp() {
   const sessionRef = useRef<ReturnType<typeof createFriendWalletSession> | null>(null)
   const stopRef = useRef<(() => void) | null>(null)
   const bindRef = useRef<(session: ReturnType<typeof createFriendWalletSession>) => void>(() => {})
+  const payRef = useRef<{ account: Address; friendId: bigint; provider: FriendWalletProvider } | null>(null)
   const audioRef = useRef<ReturnType<typeof createAudio> | null>(null)
 
   useEffect(() => {
@@ -156,8 +161,12 @@ export function WalletsApp() {
         if (!snap.account) {
           setDivers([])
           setPicked(null)
+          payRef.current = null
           const sim = simRef.current
-          if (sim) sim.diver = null
+          if (sim) {
+            sim.diver = null
+            sim.coinLabel = null
+          }
         }
       })
     }
@@ -218,6 +227,39 @@ export function WalletsApp() {
       die: () => audio.hit(),
     }
 
+    let paying = false
+    const charge = () => {
+      const pay = payRef.current
+      const economy = sim.economy
+      if (!pay || !economy || paying) return
+      if (sim.phase !== "play" && sim.phase !== "seal") return
+      if (sim.burnLock > 0 || sim.phaseTime > 0.08) return
+      paying = true
+      void (async () => {
+        try {
+          const bal = await readRareBalance(pay.account)
+          sim.coinLabel = formatRf(bal)
+          if (bal < COIN) {
+            denyBurn(sim, "NEED 1 RF", fx)
+            setHud(hudOf(sim))
+            return
+          }
+          await payRareCoin(pay)
+          const result = economy.burn({ paid: true })
+          if (result) applyBurn(sim, result, fx)
+          sim.coinLabel = formatRf(await readRareBalance(pay.account))
+          setHud(hudOf(sim))
+        } catch (error) {
+          const declined = typeof error === "object" && error !== null && "code" in error && error.code === 4001
+          denyBurn(sim, declined ? "DECLINED" : "NO PAY", fx)
+          economy.fault = declined ? "Payment declined." : error instanceof Error ? error.message.slice(0, 140) : "Payment failed."
+          setHud(hudOf(sim))
+        } finally {
+          paying = false
+        }
+      })()
+    }
+
     const inputOf = (): Input => {
       const held = override.current ?? keys.current
       let steer = readSteer(held) + dock.current
@@ -256,6 +298,10 @@ export function WalletsApp() {
       if (sim.phase !== "pause") sim.time += dt
       if (sim.phase === "dead" || sim.phase === "won") sim.endT += dt
       const input = inputOf()
+      if (payRef.current && input.burn) {
+        input.burn = false
+        charge()
+      }
       if (sim.phase === "play" || sim.phase === "seal") {
         acc += dt
         let guard = 0
@@ -326,6 +372,28 @@ export function WalletsApp() {
     }
   }, [])
 
+  const syncPay = (account: Address | null, friendId: string | null) => {
+    const provider = sessionRef.current?.getProvider() ?? findMetaMaskProvider()
+    const sim = simRef.current
+    if (!account || !friendId || !provider) {
+      payRef.current = null
+      if (sim) sim.coinLabel = null
+      return
+    }
+    payRef.current = { account, friendId: BigInt(friendId), provider }
+    void readRareBalance(account)
+      .then((bal) => {
+        const live = simRef.current
+        if (!live || payRef.current?.account !== account) return
+        live.coinLabel = formatRf(bal)
+        setHud(hudOf(live))
+      })
+      .catch(() => {
+        const live = simRef.current
+        if (live && payRef.current?.account === account) live.coinLabel = "—"
+      })
+  }
+
   const begin = () => {
     const sim = simRef.current
     if (!sim) return
@@ -333,6 +401,8 @@ export function WalletsApp() {
     const diver = divers.find((friend) => friend.id === picked) ?? null
     sim.diver = diver
     startRun(sim, diver ? BigInt(diver.id) : undefined)
+    if (diver) sim.diver = diver
+    syncPay(wallet?.account ?? null, diver?.id ?? null)
     setHud(hudOf(sim))
   }
 
@@ -375,6 +445,7 @@ export function WalletsApp() {
       setPicked(first?.id ?? null)
       const sim = simRef.current
       if (sim) sim.diver = first
+      syncPay(snap.account, first?.id ?? null)
       if (!first) setWalletNote("No eligible Generations NFT in this wallet. It has to be hardwired, generation 1 or higher.")
       else if (found.hidden > 0) setWalletNote(`${found.hidden} Friends stayed hidden by the contract.`)
     } catch (error) {
@@ -447,7 +518,7 @@ export function WalletsApp() {
             <div className="flex items-center gap-2">
               <p className="text-right font-sans text-xs text-muted">
                 <span className="block tracking-widest text-accent">RF</span>
-                <span className="font-display text-4xl leading-none text-fg">{hud.wallet}</span>
+                <span className="font-display text-4xl leading-none text-fg">{hud.coinText}</span>
               </p>
               <button
                 type="button"
@@ -582,9 +653,17 @@ export function WalletsApp() {
                   </a>
                 ) : null}
                 {walletNote ? <p className="mt-2 font-sans text-xs text-accent">{walletNote}</p> : null}
-                <p className="mt-3 max-w-md font-sans text-sm leading-relaxed text-muted">
-                  Connect to dive as your Generations NFT. Connecting does not spend RF. Or start as the stand-in.
-                </p>
+                {picked ? (
+                  <p className="mt-3 max-w-md font-sans text-xs leading-relaxed text-accent">
+                    Each burn pays 1 RF from your wallet into this Friend. MetaMask asks first. Prizes are not paid
+                    back in RF.
+                  </p>
+                ) : (
+                  <p className="mt-3 max-w-md font-sans text-sm leading-relaxed text-muted">
+                    Connect to dive as your Generations NFT and pay burns with RF. Or start as the stand-in on
+                    simulated coins.
+                  </p>
+                )}
                 {divers.length > 0 ? (
                   <ul className="mt-3 grid gap-2">
                     {divers.map((friend) => (
@@ -600,6 +679,7 @@ export function WalletsApp() {
                             setPicked(friend.id)
                             const sim = simRef.current
                             if (sim) sim.diver = friend
+                            syncPay(wallet?.account ?? null, friend.id)
                           }}
                         >
                           {friend.label}
@@ -620,7 +700,11 @@ export function WalletsApp() {
                         onClick={() => {
                           setPicked(null)
                           const sim = simRef.current
-                          if (sim) sim.diver = null
+                          if (sim) {
+                            sim.diver = null
+                            sim.coinLabel = null
+                          }
+                          syncPay(wallet?.account ?? null, null)
                         }}
                       >
                         STAND-IN

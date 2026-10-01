@@ -40,7 +40,7 @@ export type Economy = {
   sdkBurns: number
   fault: string
   collect: (amount: number) => void
-  burn: () => BurnResult | null
+  burn: (opts?: { paid?: boolean }) => BurnResult | null
   snapshot: () => Promise<GameSnapshot>
 }
 
@@ -76,13 +76,17 @@ export function createEconomy(opts?: { roll?: () => number; friendId?: bigint })
       econ.wallet += amount
       econ.collected += amount
     },
-    burn() {
-      if (econ.wallet < 1) return null
+    burn(opts?: { paid?: boolean }) {
+      if (!opts?.paid && econ.wallet < 1) return null
       roll = rollOf()
       const outcomeId = outcomeForRoll(definition, roll)
       const outcome = definition.outcomes[outcomeId - 1]
       if (!outcome) return null
       const rebate = Number(outcome.reward / RF)
+      if (opts?.paid) {
+        econ.burned += 1
+        return { name: outcome.name, rebate: 0 }
+      }
       econ.wallet = econ.wallet - 1 + rebate
       econ.burned += 1
       econ.returned += rebate
