@@ -21,9 +21,9 @@ npm run dev
 
 Open the printed URL (normally `http://127.0.0.1:8080`).
 
-Burns and balances are simulated. Connecting a wallet does not sign a transaction or spend RF. It reads the Generations NFTs that wallet holds and draws that Friend.
+Burns stay simulated on the stand-in. Connect a wallet, pick a Friend, and each burn asks MetaMask to pay 10 RF from that account into the Friend. Prizes are not paid back in RF.
 
-**Playable preview:** https://stevereynolds2006-ship-it.github.io/cinder-crew/wallets-connect/
+**Playable preview:** https://stevereynolds2006-ship-it.github.io/cinder-crew/wallets/
 
 ## Play
 
@@ -31,7 +31,7 @@ Burns and balances are simulated. Connecting a wallet does not sign a transactio
 - Start with nothing selected dives as the stand-in, strata 01, RAIN, with 22 simulated RF.
 - Steer with A and D, the arrow keys, the on-screen chevrons, or by dragging. A and the left chevron turn left.
 - W or up boosts. S or down brakes.
-- Space, K, or BURN spends 1 RF on a Burn Capsule and phases you. While phased, hazards pass through you and nearby RF is pulled in.
+- Space, K, or BURN phases you. With a connected Friend it pays 10 RF first. The stand-in spends 1 simulated RF. While phased, hazards pass through you and nearby RF is pulled in.
 - Reach the end of a stratum only after you have burned that stratum's quota. The seal then cracks and the next stratum starts. Five strata end at GARGANTUA.
 - Three hits collapse the dive. Coins add RF to the pocket. A dry pocket refuses the next burn until you scoop more.
 - Mute and reduced motion are on the menu. Escape pauses.
