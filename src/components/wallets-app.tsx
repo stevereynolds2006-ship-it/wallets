@@ -114,6 +114,7 @@ export function WalletsApp() {
   const [walletBusy, setWalletBusy] = useState(false)
   const [feeOwed, setFeeOwed] = useState(false)
   const [staked, setStaked] = useState(false)
+  const [paidFor, setPaidFor] = useState<string | null>(null)
   const [dappUrl, setDappUrl] = useState<string | null>(null)
   const [inWalletBrowser, setInWalletBrowser] = useState(false)
   const sessionRef = useRef<ReturnType<typeof createFriendWalletSession> | null>(null)
@@ -380,48 +381,54 @@ export function WalletsApp() {
       })
   }
 
+  const payUpfront = async (diver: Diver) => {
+    const account = wallet?.account
+    const provider = sessionRef.current?.getProvider() ?? findMetaMaskProvider()
+    if (!account || !provider) {
+      setWalletNote("Connect the wallet that holds this Friend. Pay 25 RF before the dive.")
+      return
+    }
+    lockFeeRef.current()
+    setWalletBusy(true)
+    setWalletNote("")
+    try {
+      const bal = await readRareBalance(account)
+      if (bal < COIN) {
+        setWalletNote("Need 25 RF in this wallet before the dive can start.")
+        return
+      }
+      if (!diver.wallet || diver.wallet === "0x0000000000000000000000000000000000000000") {
+        setWalletNote("This Friend has no wallet to receive the 25 RF.")
+        return
+      }
+      setWalletNote("Confirm 25 RF into this Friend's wallet. The dive stays locked until it lands.")
+      await payRareCoin({ account, provider, to: diver.wallet, amount: COIN })
+      setPaidFor(diver.id)
+      setStaked(true)
+      setWalletNote("25 RF is in this Friend's wallet. Tap Dive to start.")
+    } catch (error) {
+      const declined = typeof error === "object" && error !== null && "code" in error && error.code === 4001
+      setPaidFor(null)
+      setStaked(false)
+      setWalletNote(declined ? "Payment declined. The dive has not started." : error instanceof Error ? error.message.slice(0, 160) : "Payment failed.")
+    } finally {
+      feeOwedRef.current = false
+      setFeeOwed(false)
+      setWalletBusy(false)
+    }
+  }
+
   const begin = async () => {
     const sim = simRef.current
     if (!sim || walletBusy || feeOwedRef.current) return
     audioRef.current?.unlock()
     const diver = divers.find((friend) => friend.id === picked) ?? null
-    if (diver) {
-      const account = wallet?.account
-      const provider = sessionRef.current?.getProvider() ?? findMetaMaskProvider()
-      if (!account || !provider) {
-        setWalletNote("Connect the wallet that holds this Friend. The dive is 25 RF.")
-        return
-      }
-      lockFeeRef.current()
-      setWalletBusy(true)
-      setWalletNote("")
-      try {
-        const bal = await readRareBalance(account)
-        if (bal < COIN) {
-          setWalletNote("Need 25 RF in this wallet.")
-          return
-        }
-        if (!diver.wallet || diver.wallet === "0x0000000000000000000000000000000000000000") {
-          setWalletNote("This Friend has no wallet to receive the 25 RF.")
-          return
-        }
-        setWalletNote("Confirm 25 RF into this Friend's wallet.")
-        await payRareCoin({ account, provider, to: diver.wallet, amount: COIN })
-        setStaked(true)
-        setWalletNote("25 RF is in this Friend's wallet.")
-      } catch (error) {
-        const declined = typeof error === "object" && error !== null && "code" in error && error.code === 4001
-        setStaked(false)
-        setWalletNote(declined ? "Payment declined." : error instanceof Error ? error.message.slice(0, 160) : "Payment failed.")
-        return
-      } finally {
-        feeOwedRef.current = false
-        setFeeOwed(false)
-        setWalletBusy(false)
-      }
-    } else {
-      setStaked(false)
+    if (diver && paidFor !== diver.id) {
+      await payUpfront(diver)
+      return
     }
+    setPaidFor(null)
+    if (!diver) setStaked(false)
     sim.diver = diver
     startRun(sim, diver ? BigInt(diver.id) : undefined)
     if (diver) sim.diver = diver
@@ -438,6 +445,7 @@ export function WalletsApp() {
     sessionRef.current?.disconnect()
     setDivers([])
     setPicked(null)
+    setPaidFor(null)
     setWalletNote("")
     setStaked(false)
     payRef.current = null
@@ -519,6 +527,7 @@ export function WalletsApp() {
   }
 
   const playing = hud.phase === "play" || hud.phase === "seal" || hud.phase === "pause"
+  const needsPay = Boolean(picked && paidFor !== picked)
   const pickedFriend = divers.find((friend) => friend.id === picked) ?? null
   const net = hud.burned - hud.returned
   const showOverlay = hud.phase === "menu" || hud.phase === "dead" || hud.phase === "won" || hud.phase === "pause"
@@ -735,7 +744,7 @@ export function WalletsApp() {
                 {walletNote ? <p className="mt-2 font-sans text-xs text-accent">{walletNote}</p> : null}
                 {picked ? (
                   <p className="mt-3 max-w-md font-sans text-xs leading-relaxed text-accent">
-                    Dive sends 25 RF to {pickedFriend ? `${pickedFriend.wallet.slice(0, 6)}…${pickedFriend.wallet.slice(-4)}` : "this Friend"}, this Friend's wallet, before play. It stays there. The wallet prompt stays closed while you play.
+                    Pay 25 RF to {pickedFriend ? `${pickedFriend.wallet.slice(0, 6)}…${pickedFriend.wallet.slice(-4)}` : "this Friend"}, this Friend's wallet, before the dive can start. It stays there. Nothing starts until that payment confirms.
                   </p>
                 ) : (
                   <p className="mt-3 max-w-md font-sans text-sm leading-relaxed text-muted">
@@ -794,7 +803,7 @@ export function WalletsApp() {
                 ) : null}
                 <div className="mt-4 flex flex-wrap gap-2">
                   <button type="button" className="h-14 min-w-40 flex-1 bg-primary px-6 font-display text-3xl tracking-wide text-bg disabled:opacity-40" onClick={() => void begin()} disabled={walletBusy || feeOwed}>
-                    {walletBusy ? "25 RF…" : picked ? "Dive" : "Start"}
+                    {walletBusy ? "PAYING…" : needsPay ? "PAY 25 RF" : picked ? "DIVE" : "START"}
                   </button>
                   <button type="button" className="h-14 border border-border px-4 font-sans text-xs text-fg" onClick={toggleMute} aria-pressed={save.muted}>
                     {save.muted ? "SOUND OFF" : "SOUND ON"}
@@ -902,7 +911,7 @@ export function WalletsApp() {
                     disabled={walletBusy || feeOwed}
                   >
                     <RotateCcw size={18} />
-                    Dive again
+                    {needsPay ? "PAY 25 RF" : "DIVE"}
                   </button>
                   <button
                     type="button"

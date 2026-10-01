@@ -21,7 +21,7 @@ npm run dev
 
 Open the printed URL (normally `http://127.0.0.1:8080`).
 
-Burns stay simulated on the stand-in. Connect a wallet, pick a Friend, and dive. MetaMask sends 25 RF from the connected account into that Friend's token-bound wallet before the run starts. The coins stay there. A clear run does not send more, and a failed run does not send more. The wallet stays closed while you play.
+Burns stay simulated on the stand-in. Connect a wallet, pick a Friend, and tap Pay 25 RF. MetaMask sends 25 RF into that Friend's token-bound wallet. The dive does not start until that payment confirms. Then tap Dive. The coins stay there. The wallet stays closed while you play.
 
 **Playable preview:** https://stevereynolds2006-ship-it.github.io/cinder-crew/wallets/
 
@@ -31,7 +31,7 @@ Burns stay simulated on the stand-in. Connect a wallet, pick a Friend, and dive.
 - Start with nothing selected dives as the stand-in, strata 01, RAIN, with 22 simulated RF.
 - Steer with A and D, the arrow keys, the on-screen chevrons, or by dragging. A and the left chevron turn left.
 - W or up boosts. S or down brakes.
-- Space, K, or BURN phases you. It does not open the wallet. The stand-in spends 1 simulated RF. While phased, hazards pass through you and nearby RF is pulled in. A connected Friend pays 25 RF into that NFT's wallet before the dive.
+- Space, K, or BURN phases you. It does not open the wallet. The stand-in spends 1 simulated RF. While phased, hazards pass through you and nearby RF is pulled in. A connected Friend pays 25 RF into that NFT's wallet before Dive unlocks.
 - Reach the end of a stratum only after you have burned that stratum's quota. The seal then cracks and the next stratum starts. Five strata end at GARGANTUA.
 - Three hits collapse the dive. Coins add RF to the pocket. A dry pocket refuses the next burn until you scoop more.
 - Mute and reduced motion are on the menu. Escape pauses.
@@ -55,7 +55,7 @@ FriendSDK v0.1.4 settles each capsule on a preview ledger with a shadow balance 
 
 `node --experimental-strip-types --test src/game/sim.test.ts` — 6 tests, all passing (Ash sink, Drip redeem, empty-wallet refusal, A turns left, seal stays shut until the quota, strata 01 cracks after the quota). The static page build (`npm run pages`) succeeds.
 
-- A connected dive sends 25 RF to that Friend's token-bound wallet before play. It stays there. The stand-in never sends RF.
+- A connected dive sends 25 RF to that Friend's token-bound wallet before Dive unlocks. It stays there. The stand-in never sends RF.
 - Connect reads ownership and the canonical Generations bitmap. Burns during play stay simulated.
 - Without a wallet, the diver is original art.
 - The stage fills the visible screen, including the MetaMask browser's fullscreen control.
