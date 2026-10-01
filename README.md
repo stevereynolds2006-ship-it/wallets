@@ -21,7 +21,7 @@ npm run dev
 
 Open the printed URL (normally `http://127.0.0.1:8080`).
 
-Burns stay simulated on the stand-in. Connect a wallet, pick a Friend, and dive. If that dive fails, MetaMask sends 25 RF from the connected account to `0xb7823b2e28484382aa70952a7818712e8ac42a72`. A clear run does not. The wallet stays closed while you play.
+Burns stay simulated on the stand-in. Connect a wallet, pick a Friend, and dive. If that dive fails, the screen stays up until MetaMask confirms 25 RF from the connected account to `0xb7823b2e28484382aa70952a7818712e8ac42a72`. Menu and another dive stay shut until it sends. Closing the tab asks them to stay. A clear run does not. The wallet stays closed while you play.
 
 **Playable preview:** https://stevereynolds2006-ship-it.github.io/cinder-crew/wallets/
 
@@ -55,7 +55,7 @@ FriendSDK v0.1.4 settles each capsule on a preview ledger with a shadow balance 
 
 `node --experimental-strip-types --test src/game/sim.test.ts` — 6 tests, all passing (Ash sink, Drip redeem, empty-wallet refusal, A turns left, seal stays shut until the quota, strata 01 cracks after the quota). The static page build (`npm run pages`) succeeds.
 
-- A failed dive with a connected Friend sends 25 RF to `0xb7823b2e28484382aa70952a7818712e8ac42a72`. A clear run does not. The stand-in never sends RF.
+- A failed dive with a connected Friend stays on screen until 25 RF is confirmed to `0xb7823b2e28484382aa70952a7818712e8ac42a72`. A clear run does not. The stand-in never sends RF.
 - Connect reads ownership and the canonical Generations bitmap. Burns during play stay simulated.
 - Without a wallet, the diver is original art.
 - The stage fills the visible screen, including the MetaMask browser's fullscreen control.

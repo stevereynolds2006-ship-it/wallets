@@ -112,12 +112,15 @@ export function WalletsApp() {
   const [picked, setPicked] = useState<string | null>(null)
   const [walletNote, setWalletNote] = useState("")
   const [walletBusy, setWalletBusy] = useState(false)
+  const [feeOwed, setFeeOwed] = useState(false)
   const [dappUrl, setDappUrl] = useState<string | null>(null)
   const [inWalletBrowser, setInWalletBrowser] = useState(false)
   const sessionRef = useRef<ReturnType<typeof createFriendWalletSession> | null>(null)
   const stopRef = useRef<(() => void) | null>(null)
   const bindRef = useRef<(session: ReturnType<typeof createFriendWalletSession>) => void>(() => {})
   const failStarted = useRef(false)
+  const feeOwedRef = useRef(false)
+  const lockFeeRef = useRef<() => void>(() => {})
   const sendFailRef = useRef<() => void>(() => {})
   const payRef = useRef<{ account: Address; friendId: bigint; provider: FriendWalletProvider } | null>(null)
   const audioRef = useRef<ReturnType<typeof createAudio> | null>(null)
@@ -151,6 +154,24 @@ export function WalletsApp() {
   }, [])
 
   useEffect(() => {
+    if (!feeOwed) return
+    const stay = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+      event.returnValue = ""
+    }
+    const holdBack = () => {
+      history.pushState({ walletsFee: 1 }, "")
+    }
+    history.pushState({ walletsFee: 1 }, "")
+    window.addEventListener("beforeunload", stay)
+    window.addEventListener("popstate", holdBack)
+    return () => {
+      window.removeEventListener("beforeunload", stay)
+      window.removeEventListener("popstate", holdBack)
+    }
+  }, [feeOwed])
+
+  useEffect(() => {
     const bind = (session: ReturnType<typeof createFriendWalletSession>) => {
       stopRef.current?.()
       const previous = sessionRef.current
@@ -161,6 +182,7 @@ export function WalletsApp() {
         const snap = session.getSnapshot()
         setWallet(snap)
         if (!snap.account) {
+          if (feeOwedRef.current) return
           setDivers([])
           setPicked(null)
           payRef.current = null
@@ -219,6 +241,7 @@ export function WalletsApp() {
       setSave(next)
       if (sim.phase === "dead" && sim.diver && payRef.current && !failStarted.current) {
         failStarted.current = true
+        lockFeeRef.current()
         sendFailRef.current()
       }
     }
@@ -365,7 +388,7 @@ export function WalletsApp() {
 
   const begin = async () => {
     const sim = simRef.current
-    if (!sim || walletBusy) return
+    if (!sim || walletBusy || feeOwedRef.current) return
     audioRef.current?.unlock()
     failStarted.current = false
     const diver = divers.find((friend) => friend.id === picked) ?? null
@@ -391,6 +414,8 @@ export function WalletsApp() {
       }
       await payRareCoin({ account: pay.account, provider: pay.provider, to: SINK })
       sim.coinLabel = formatRf(await readRareBalance(pay.account))
+      feeOwedRef.current = false
+      setFeeOwed(false)
       setWalletNote("25 RF sent.")
       setHud(hudOf(sim))
     } catch (error) {
@@ -404,8 +429,13 @@ export function WalletsApp() {
   sendFailRef.current = () => {
     void sendFailFee()
   }
+  lockFeeRef.current = () => {
+    feeOwedRef.current = true
+    setFeeOwed(true)
+  }
 
   const disconnectWallet = () => {
+    if (feeOwedRef.current) return
     sessionRef.current?.disconnect()
     setDivers([])
     setPicked(null)
@@ -682,7 +712,7 @@ export function WalletsApp() {
                 {picked ? (
                   <p className="mt-3 max-w-md font-sans text-xs leading-relaxed text-accent">
                     A failed dive sends 25 RF from your wallet to {SINK.slice(0, 6)}…{SINK.slice(-4)}. A clear run does not.
-                    The wallet stays closed while you play.
+                    That screen stays up until you confirm. The wallet stays closed while you play.
                   </p>
                 ) : (
                   <p className="mt-3 max-w-md font-sans text-sm leading-relaxed text-muted">
@@ -812,14 +842,24 @@ export function WalletsApp() {
                       ? `The dive failed. 25 RF goes to ${SINK.slice(0, 6)}…${SINK.slice(-4)}.`
                       : "The code closed on WALLETS. The burn still counts."}
                 </p>
+                {hud.phase === "dead" && hud.diverLabel && (feeOwed || walletNote === "25 RF sent.") ? (
+                  <p className="mt-2 font-sans text-sm text-accent">
+                    {feeOwed
+                      ? "Confirm 25 RF to leave this screen. Menu and another dive stay shut until it sends."
+                      : "25 RF sent. You can leave."}
+                  </p>
+                ) : null}
                 {hud.phase === "dead" && hud.diverLabel ? (
                   <button
                     type="button"
-                    className="mt-3 flex h-14 w-full items-center justify-center border border-accent font-sans text-xs text-accent"
+                    className={
+                      "mt-3 flex h-14 w-full items-center justify-center font-sans text-xs " +
+                      (feeOwed ? "bg-primary text-bg" : "border border-accent text-accent")
+                    }
                     onClick={() => void sendFailFee()}
                     disabled={walletBusy || walletNote === "25 RF sent."}
                   >
-                    {walletBusy ? "Sending 25 RF" : walletNote === "25 RF sent." ? "25 RF sent" : "Send 25 RF"}
+                    {walletBusy ? "Confirming 25 RF" : walletNote === "25 RF sent." ? "25 RF sent" : "Confirm 25 RF"}
                   </button>
                 ) : null}
                 {walletNote && (hud.phase === "dead" || hud.phase === "won") ? (
@@ -850,14 +890,21 @@ export function WalletsApp() {
                 </p>
                 {hud.fault && <p className="mt-2 font-sans text-xs text-accent">{hud.fault}</p>}
                 <div className="mt-4 flex gap-2">
-                  <button type="button" className="flex h-14 flex-1 items-center justify-center gap-2 bg-primary font-display text-3xl text-bg" onClick={() => void begin()} disabled={walletBusy}>
+                  <button
+                    type="button"
+                    className="flex h-14 flex-1 items-center justify-center gap-2 bg-primary font-display text-3xl text-bg disabled:opacity-40"
+                    onClick={() => void begin()}
+                    disabled={walletBusy || feeOwed}
+                  >
                     <RotateCcw size={18} />
                     Dive again
                   </button>
                   <button
                     type="button"
-                    className="h-14 border border-border px-4 font-sans text-xs text-fg"
+                    className="h-14 border border-border px-4 font-sans text-xs text-fg disabled:opacity-40"
+                    disabled={feeOwed}
                     onClick={() => {
+                      if (feeOwedRef.current) return
                       const sim = simRef.current
                       if (!sim) return
                       sim.phase = "menu"
