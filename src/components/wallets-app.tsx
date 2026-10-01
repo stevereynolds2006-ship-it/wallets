@@ -240,7 +240,7 @@ export function WalletsApp() {
           const bal = await readRareBalance(pay.account)
           sim.coinLabel = formatRf(bal)
           if (bal < COIN) {
-            denyBurn(sim, "NEED 1 RF", fx)
+            denyBurn(sim, "NEED 10 RF", fx)
             setHud(hudOf(sim))
             return
           }
@@ -655,7 +655,7 @@ export function WalletsApp() {
                 {walletNote ? <p className="mt-2 font-sans text-xs text-accent">{walletNote}</p> : null}
                 {picked ? (
                   <p className="mt-3 max-w-md font-sans text-xs leading-relaxed text-accent">
-                    Each burn pays 1 RF from your wallet into this Friend. MetaMask asks first. Prizes are not paid
+                    Each burn pays 10 RF from your wallet into this Friend. MetaMask asks first. Prizes are not paid
                     back in RF.
                   </p>
                 ) : (

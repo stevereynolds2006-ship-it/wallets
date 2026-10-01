@@ -16,7 +16,7 @@ import {
 /** Canonical $RAREFRIENDS and Generations contracts on Robinhood Chain. */
 export const RF_TOKEN: Address = "0x0779369854d3EcdEA927206718FFD7730C67B71f"
 export const GENERATIONS: Address = "0x14C49e6118F46525dE9ab41a51cBAA3c6EBF181D"
-export const COIN = RF
+export const COIN = 10n * RF
 
 const robinhood = defineChain({
   id: 4663,
@@ -41,7 +41,7 @@ export async function readRareBalance(account: Address): Promise<bigint> {
   return reader.readContract({ address: RF_TOKEN, abi, functionName: "balanceOf", args: [account] })
 }
 
-/** Wallet-confirmed transfer of 1 RF into the selected Friend's own wallet. */
+/** Wallet-confirmed transfer of 10 RF into the selected Friend's own wallet. */
 export async function payRareCoin(opts: {
   account: Address
   friendId: bigint
